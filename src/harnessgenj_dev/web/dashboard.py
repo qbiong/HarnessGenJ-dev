@@ -1126,6 +1126,7 @@ class AgentSession:
     def save_session(self) -> None:
         session = self._get_session()
         if session:
+            session.project = self.project
             self._get_session_mgr().save(session)
 
     def interrupt(self) -> None:
