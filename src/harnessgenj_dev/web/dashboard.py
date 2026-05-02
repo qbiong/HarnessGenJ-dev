@@ -225,42 +225,33 @@ body {{
 .btn-secondary:hover {{ color: var(--text-primary); border-color: var(--accent-cyan); }}
 
 /* Messages */
-/* Messages — group chat style: avatar + name outside, content in bubble */.msg-group {{ display: flex; align-items: flex-start; gap: 10px; margin: 8px 0; max-width: 85%; }}.msg-group.user {{ align-self: flex-end; flex-direction: row-reverse; }}.msg-group.ai {{ align-self: flex-start; }}.msg-group.system {{ align-self: center; max-width: 100%; }}.msg-avatar {{ width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; }}.msg-avatar.pm {{ background: rgba(0,212,255,0.15); }}.msg-avatar.arch {{ background: rgba(59,130,246,0.15); }}.msg-avatar.dev {{ background: rgba(16,185,129,0.15); }}.msg-avatar.rev {{ background: rgba(240,136,62,0.15); }}.msg-avatar.hunt {{ background: rgba(239,68,68,0.15); }}.msg-avatar.doc {{ background: rgba(148,163,184,0.15); }}.msg-avatar.user {{ background: rgba(168,85,247,0.15); }}.msg-body {{ flex: 1; min-width: 0; }}.msg-sender {{ font-size: 11px; font-weight: 600; margin-bottom: 3px; }}.msg-sender.pm {{ color: var(--accent-cyan); }}.msg-sender.arch {{ color: var(--accent-blue); }}.msg-sender.dev {{ color: var(--success); }}.msg-sender.rev {{ color: #f0883e; }}.msg-sender.hunt {{ color: var(--error); }}.msg-sender.doc {{ color: var(--text-secondary); }}.msg-bubble {{ padding: 10px 14px; border-radius: var(--radius-md); font-size: 13px; line-height: 1.6; background: var(--bg-secondary); border: 1px solid var(--border); }}.msg-group.user .msg-bubble {{ background: var(--bg-tertiary); }}
-.msg pre {{ background: #0a0e14; padding: 8px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 6px 0; }}
-.msg code {{ background: #0a0e14; padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #e06c75; }}
-.msg strong {{ color: var(--text-primary); font-weight: 700; }}
-.msg em {{ font-style: italic; }}
-.msg h1, .msg h2, .msg h3, .msg h4 {{ color: var(--accent-cyan); margin: 14px 0 8px; font-weight: 600; }}
-.msg h1 {{ font-size: 20px; }} .msg h2 {{ font-size: 17px; }} .msg h3 {{ font-size: 15px; }}
-.msg ul, .msg ol {{ padding-left: 24px; margin: 8px 0; }}
-.msg li {{ margin: 4px 0; line-height: 1.6; }}
-.msg blockquote {{ border-left: 3px solid var(--accent-cyan); padding-left: 14px; color: var(--text-secondary); margin: 10px 0; font-style: italic; }}
-.msg a {{ color: var(--accent-cyan); text-decoration: underline; }}
-.msg table {{ border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 12px; }}
-.msg th {{ background: var(--bg-tertiary); color: var(--accent-cyan); border: 1px solid var(--border); padding: 8px 12px; text-align: left; font-weight: 600; }}
-.msg td {{ border: 1px solid var(--border); padding: 6px 12px; }}
-.msg hr {{ border: none; border-top: 1px solid var(--border); margin: 14px 0; }}
-
-/* Session panel */
-.session-bar {{ display: flex; align-items: center; gap: 8px; padding: 8px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); font-size: 12px; position: sticky; top: 0; z-index: 40; }}
-.session-bar .role-select {{
-    background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 4px 8px; font-size: 11px; font-family: var(--font-mono);
-}}
-.session-dropdown {{ position: relative; display: inline-block; }}
-.session-panel {{ display: none; position: fixed; top: 100px; right: 20px; background: rgba(19,25,32,0.97); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: var(--radius-md); min-width: 320px; max-width: calc(100vw - 40px); max-height: calc(100vh - 72px); overflow-y: auto; box-shadow: var(--shadow-card); z-index: 100; }}
-.session-panel.open {{ display: block; }}
-.session-panel-header {{ display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg-secondary); }}
-.session-panel-header span {{ font-size: 12px; font-weight: 600; color: var(--text-primary); }}
-.session-panel-header button {{ background: var(--success); color: white; border: none; border-radius: var(--radius-sm); padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer; }}
-.session-item {{ padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background var(--transition); }}
-.session-item:hover {{ background: var(--bg-tertiary); }}
-.session-item.active {{ background: linear-gradient(90deg, rgba(16,185,129,0.15), transparent); border-left: 3px solid var(--success); }}
-.session-item .s-title {{ font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
-.session-item .s-meta {{ font-size: 10px; color: var(--text-muted); margin-top: 3px; }}
-.session-item .s-actions {{ display: inline-block; margin-left: 8px; }}
-.session-item .s-actions a {{ color: var(--error); font-size: 10px; cursor: pointer; text-decoration: none; }}
-
+/* Messages — group chat style: avatar + name outside, content in bubble */.msg-group {{ display: flex; align-items: flex-start; gap: 12px; margin: 16px 0; max-width: 88%; animation: msgSlide 0.25s ease-out; }}
+@keyframes msgSlide {{ from {{ opacity: 0; transform: translateY(8px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+.msg-group.user {{ align-self: flex-end; flex-direction: row-reverse; }}
+.msg-group.ai {{ align-self: flex-start; }}
+.msg-group.system {{ align-self: center; max-width: 90%; }}
+.msg-avatar {{ width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: transform 0.15s ease; }}
+.msg-avatar:hover {{ transform: scale(1.1); }}
+.msg-avatar.pm {{ background: linear-gradient(135deg, #00d4ff22, #00d4ff44); color: #00d4ff; border: 1px solid #00d4ff33; }}
+.msg-avatar.arch {{ background: linear-gradient(135deg, #3b82f622, #3b82f644); color: #60a5fa; border: 1px solid #3b82f633; }}
+.msg-avatar.dev {{ background: linear-gradient(135deg, #10b98122, #10b98144); color: #34d399; border: 1px solid #10b98133; }}
+.msg-avatar.rev {{ background: linear-gradient(135deg, #f0883e22, #f0883e44); color: #fbbf24; border: 1px solid #f0883e33; }}
+.msg-avatar.hunt {{ background: linear-gradient(135deg, #ef444422, #ef444444); color: #f87171; border: 1px solid #ef444433; }}
+.msg-avatar.doc {{ background: linear-gradient(135deg, #94a3b822, #94a3b844); color: #cbd5e1; border: 1px solid #94a3b833; }}
+.msg-avatar.user {{ background: linear-gradient(135deg, #a855f722, #a855f744); color: #c084fc; border: 1px solid #a855f733; }}
+.msg-body {{ flex: 1; min-width: 0; }}
+.msg-sender {{ font-size: 11px; font-weight: 600; margin-bottom: 4px; padding-left: 4px; letter-spacing: 0.3px; }}
+.msg-sender.pm {{ color: #00d4ff; }}
+.msg-sender.arch {{ color: #60a5fa; }}
+.msg-sender.dev {{ color: #34d399; }}
+.msg-sender.rev {{ color: #fbbf24; }}
+.msg-sender.hunt {{ color: #f87171; }}
+.msg-sender.doc {{ color: #94a3b8; }}
+.msg-bubble {{ padding: 12px 16px; border-radius: 14px; font-size: 13px; line-height: 1.7; background: linear-gradient(135deg, rgba(19,25,32,0.9), rgba(26,34,48,0.8)); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 2px 12px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.02) inset; backdrop-filter: blur(8px); position: relative; }}
+.msg-bubble code {{ background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #e06c75; }}
+.msg-bubble pre {{ background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px; margin: 8px 0; border: 1px solid rgba(255,255,255,0.04); }}
+.msg-group:not(.user) .msg-bubble {{ border-color: rgba(0,212,255,0.08); }}
+.msg-group.user .msg-bubble {{ background: linear-gradient(135deg, rgba(19,25,32,0.95), rgba(26,34,48,0.85)); border-color: rgba(168,85,247,0.15); }}
 /* Tool call card */
 .tool-card {{ align-self: flex-start; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; max-width: 70%; margin: 4px 0; font-size: 12px; }}
 .tool-card .tc-name {{ color: var(--accent-cyan); font-weight: 600; font-size: 11px; }}
@@ -695,14 +686,12 @@ function escapeHtml(text) {{
 }}
 
 function renderMsg(role, className, content) {{
-    var cssRoles = {{'product_manager':'pm','architect':'arch','developer':'dev','code_reviewer':'rev','bug_hunter':'hunt','doc_writer':'doc'}};
-    var labels = {{'product_manager':'PM','architect':'ARCH','developer':'DEV','code_reviewer':'REV','bug_hunter':'BUG','doc_writer':'DOC'}};
-    var cssR = cssRoles[role] || 'pm';
-    var label = labels[role] || role;
+    var roles = {{'product_manager':{{'av':'PM','nm':'产品经理','cl':'pm'}},'architect':{{'av':'AR','nm':'架构师','cl':'arch'}},'developer':{{'av':'DV','nm':'开发者','cl':'dev'}},'code_reviewer':{{'av':'RV','nm':'审查员','cl':'rev'}},'bug_hunter':{{'av':'BH','nm':'Bug猎人','cl':'hunt'}},'doc_writer':{{'av':'DW','nm':'文档编写者','cl':'doc'}}}};
+    var r = roles[role] || {{'av':'AI','nm':role,'cl':'pm'}};
     var html = '<div class="msg-group ' + className + '">';
-    html += '<div class="msg-avatar ' + cssR + '">' + label + '</div>';
+    html += '<div class="msg-avatar ' + r.cl + '">' + r.av + '</div>';
     html += '<div class="msg-body">';
-    html += '<div class="msg-sender ' + cssR + '">' + label + '</div>';
+    html += '<div class="msg-sender ' + r.cl + '">' + r.nm + '</div>';
     html += '<div class="msg-bubble">' + content + '</div>';
     html += '</div></div>';
     return html;
