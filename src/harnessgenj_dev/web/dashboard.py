@@ -694,14 +694,36 @@ function escapeHtml(text) {{
     return d.innerHTML;
 }}
 
-function getRoleBadge(role) {{
-    if (!role) return '';
-    var colors = {{'product_manager':'var(--accent-cyan)','architect':'var(--accent-blue)','developer':'var(--success)','code_reviewer':'#f0883e','bug_hunter':'var(--error)','doc_writer':'var(--text-secondary)'}};
-    var labels = {{'product_manager':'产品经理','architect':'架构师','developer':'开发者','code_reviewer':'代码审查员','bug_hunter':'Bug猎人','doc_writer':'文档编写者'}};
-    var color = colors[role] || 'var(--text-secondary)';
+function renderMsg(role, className, content) {{
+    var cssRoles = {{'product_manager':'pm','architect':'arch','developer':'dev','code_reviewer':'rev','bug_hunter':'hunt','doc_writer':'doc'}};
+    var labels = {{'product_manager':'PM','architect':'ARCH','developer':'DEV','code_reviewer':'REV','bug_hunter':'BUG','doc_writer':'DOC'}};
+    var cssR = cssRoles[role] || 'pm';
     var label = labels[role] || role;
-    return '<div style=\"font-size:10px;font-weight:600;color:' + color + ';margin-bottom:4px;\">[' + label + ']</div>';
+    var html = '<div class="msg-group ' + className + '">';
+    html += '<div class="msg-avatar ' + cssR + '">' + label + '</div>';
+    html += '<div class="msg-body">';
+    html += '<div class="msg-sender ' + cssR + '">' + label + '</div>';
+    html += '<div class="msg-bubble">' + content + '</div>';
+    html += '</div></div>';
+    return html;
 }}
+
+function renderUserMsg(content) {{
+    var html = '<div class="msg-group user">';
+    html += '<div class="msg-avatar user">YOU</div>';
+    html += '<div class="msg-body">';
+    html += '<div class="msg-sender" style="color:var(--accent-purple);">You</div>';
+    html += '<div class="msg-bubble">' + escapeHtml(content) + '</div>';
+    html += '</div></div>';
+    return html;
+}}
+    var html = '<div class="msg-group user">';
+    html += '<div class="msg-avatar user">👤</div>';
+    html += '<div class="msg-body">';
+    html += '<div class="msg-sender" style="color:var(--accent-purple);">你</div>';
+    html += '<div class="msg-bubble">' + escapeHtml(content) + '</div>';
+    html += '</div></div>';
+    return html;
 
 function scrollToBottom() {{
     var container = document.getElementById('tab-chat');
