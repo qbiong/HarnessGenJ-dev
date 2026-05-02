@@ -712,18 +712,11 @@ function renderUserMsg(content) {{
     var html = '<div class="msg-group user">';
     html += '<div class="msg-avatar user">YOU</div>';
     html += '<div class="msg-body">';
-    html += '<div class="msg-sender" style="color:var(--accent-purple);">You</div>';
-    html += '<div class="msg-bubble">' + escapeHtml(content) + '</div>';
-    html += '</div></div>';
-    return html;
-}}
-    var html = '<div class="msg-group user">';
-    html += '<div class="msg-avatar user">👤</div>';
-    html += '<div class="msg-body">';
     html += '<div class="msg-sender" style="color:var(--accent-purple);">你</div>';
     html += '<div class="msg-bubble">' + escapeHtml(content) + '</div>';
     html += '</div></div>';
     return html;
+}}
 
 function scrollToBottom() {{
     var container = document.getElementById('tab-chat');

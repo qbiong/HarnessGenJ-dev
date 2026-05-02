@@ -1,0 +1,32 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]: HGJ-dev
+    - generic [ref=e4]:
+      - generic [ref=e5] [cursor=pointer]: 对话
+      - generic [ref=e6] [cursor=pointer]: 项目
+      - generic [ref=e7] [cursor=pointer]: 文件
+      - generic [ref=e8] [cursor=pointer]: 设置
+    - generic [ref=e11]: 就绪
+  - generic [ref=e13]:
+    - generic [ref=e14]:
+      - combobox [ref=e15]:
+        - option "加载中..." [selected]
+      - generic [ref=e16]: "|"
+      - generic [ref=e17]: "|"
+      - combobox [ref=e18]:
+        - option "Product Manager" [selected]
+        - option "Developer"
+        - option "Code Reviewer"
+        - option "Bug Hunter"
+        - option "Architect"
+        - option "Doc Writer"
+      - generic [ref=e19]: "|"
+      - generic [ref=e20]: 会话
+    - generic [ref=e21]:
+      - generic [ref=e23]:
+        - heading "HGJ-dev" [level=2] [ref=e24]
+        - paragraph [ref=e25]: AI 驱动的开发助手
+        - paragraph [ref=e26]: 输入请求开始开发
+      - generic [ref=e28]:
+        - textbox "描述你想要实现的功能..." [ref=e29]
+        - button "发送" [ref=e30] [cursor=pointer]
