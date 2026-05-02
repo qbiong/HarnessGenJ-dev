@@ -684,13 +684,15 @@ msgInput.addEventListener('keydown', function(e) {{
 // ---- Session Management ----
 function loadSessions() {{
     if (ws && ws.readyState === WebSocket.OPEN) {{
-        ws.send(JSON.stringify({{type: 'session_list'}}));
+        var currentProject = document.getElementById('project-select').value || 'default';
+        ws.send(JSON.stringify({{type: 'session_list', project: currentProject}}));
     }}
 }}
 
 async function newSession() {{
     try {{
-        var r = await fetch('/api/sessions', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{project:'default', role:roleSelect.value}})}});
+        var currentProject = document.getElementById('project-select').value || 'default';
+        var r = await fetch('/api/sessions', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{project: currentProject, role:roleSelect.value}})}});
         var data = await r.json();
         currentSessionId = data.session_id;
         chat.innerHTML = '';
@@ -775,7 +777,9 @@ async function switchActiveProject() {{
     try {{
         await fetch('/api/projects/' + encodeURIComponent(name) + '/switch', {{method:'POST'}});
         loadProjectsDropdown();
-        // Reload session list for new project
+        // Switch WebSocket session project and reload sessions
+        currentSessionId = null;
+        chat.innerHTML = '<div class=\"welcome\" id=\"welcome\"><h2>HGJ-dev</h2><p>AI 驱动的开发助手</p></div>';
         if (ws && ws.readyState === WebSocket.OPEN) {{
             ws.send(JSON.stringify({{type:'session_list'}}));
         }}
@@ -1018,7 +1022,11 @@ class _ConfigShim:
 
 
 class AgentSession:
-    def __init__(self, websocket: WebSocket, project: str = "default") -> None:
+    def __init__(self, websocket: WebSocket, project: str = "") -> None:
+        if not project:
+            from harnessgenj_dev.projects import get_active_project
+            active = get_active_project()
+            project = active["name"] if active else "default"
         self.ws = websocket
         self.role = _DEFAULT_TEAM_ROLE
         self.project = project
@@ -1174,7 +1182,7 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
-        session = AgentSession(websocket)
+        session = AgentSession(websocket)  # project auto-detected from active project
         self.active_connections.append(session)
         logger.info("connection open")
         await session.send({"type": "status", "state": "idle"})
@@ -1270,8 +1278,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     await session.send({"type": "error", "message": f"Session not found: {sid}"})
             elif msg_type == "session_list":
                 mgr = app.state.session_manager
+                # Use project from message if provided, else use session's project
+                proj = data.get("project", session.project)
+                if proj and proj != session.project:
+                    session.project = proj
                 sessions = mgr.list_sessions(session.project)
-                await session.send({"type": "session_list", "sessions": sessions})
+                await session.send({"type": "session_list", "sessions": sessions, "project": session.project})
     except WebSocketDisconnect:
         pass
     except Exception:
