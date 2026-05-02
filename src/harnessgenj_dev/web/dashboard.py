@@ -252,7 +252,7 @@ body {{
     border-radius: var(--radius-sm); padding: 4px 8px; font-size: 11px; font-family: var(--font-mono);
 }}
 .session-dropdown {{ position: relative; display: inline-block; }}
-.session-panel {{ display: none; position: fixed; top: 52px; right: 20px; background: rgba(19,25,32,0.97); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: var(--radius-md); min-width: 320px; max-width: calc(100vw - 40px); max-height: calc(100vh - 72px); overflow-y: auto; box-shadow: var(--shadow-card); z-index: 100; }}
+.session-panel {{ display: none; position: fixed; top: 100px; right: 20px; background: rgba(19,25,32,0.97); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: var(--radius-md); min-width: 320px; max-width: calc(100vw - 40px); max-height: calc(100vh - 72px); overflow-y: auto; box-shadow: var(--shadow-card); z-index: 100; }}
 .session-panel.open {{ display: block; }}
 .session-panel-header {{ display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg-secondary); }}
 .session-panel-header span {{ font-size: 12px; font-weight: 600; color: var(--text-primary); }}
