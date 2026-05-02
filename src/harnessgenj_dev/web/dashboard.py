@@ -516,6 +516,15 @@ function toggleSessionPanel() {{
     document.getElementById('session-panel').classList.toggle('open');
 }}
 
+document.addEventListener('click', function(e) {{
+    var panel = document.getElementById('session-panel');
+    if (!panel) return;
+    var inside = e.target.closest('.session-dropdown');
+    if (!inside && panel.classList.contains('open')) {{
+        panel.classList.remove('open');
+    }}
+}});
+
 // ---- WebSocket Connection ----
 var ws = null;
 var currentSessionId = null;
@@ -535,6 +544,7 @@ function connect() {{
     ws.onopen = function() {{
         console.log('WS connected');
         document.getElementById('key-info').textContent = '已连接';
+                setTimeout(function() {{ loadSessions(); }}, 800);
     }};
     ws.onmessage = function(e) {{
         var msg = JSON.parse(e.data);
