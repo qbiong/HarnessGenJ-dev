@@ -568,6 +568,7 @@ function handleMessage(msg) {{
             if (!lastMsg) {{
                 var div = document.createElement('div');
                 div.className = 'msg ai';
+                div.innerHTML = getRoleBadge(msg.role);
                 chat.appendChild(div);
                 lastMsg = div;
             }}
@@ -593,14 +594,14 @@ function handleMessage(msg) {{
             break;
         case 'final_answer':
             if (msg.content) {{
-                // Replace last streaming message if exists, otherwise create new
                 var lastAi = chat.querySelector('.msg.ai:last-child');
+                var badgeHtml = getRoleBadge(msg.role);
                 if (lastAi) {{
-                    lastAi.innerHTML = formatContent(msg.content);
+                    lastAi.innerHTML = badgeHtml + formatContent(msg.content);
                 }} else {{
                     var div = document.createElement('div');
                     div.className = 'msg ai';
-                    div.innerHTML = formatContent(msg.content);
+                    div.innerHTML = badgeHtml + formatContent(msg.content);
                     chat.appendChild(div);
                 }}
             }}
@@ -653,8 +654,14 @@ function send() {{
     addMsg('user', text);
     msgInput.value = '';
     msgInput.style.height = 'auto';
+
+    // Check for user @mention to route to specific role
+    var mentionMatch = text.match(/@(product_manager|architect|developer|code_reviewer|bug_hunter|doc_writer)/);
+    var targetRole = mentionMatch ? mentionMatch[1] : roleSelect.value;
+    var content = mentionMatch ? text.replace(mentionMatch[0], '').trim() : text;
+
     if (ws && ws.readyState === WebSocket.OPEN) {{
-        ws.send(JSON.stringify({{type: 'develop', content: text, role: roleSelect.value}}));
+        ws.send(JSON.stringify({{type: 'develop', content: content || text, role: targetRole}}));
     }}
 }}
 
@@ -697,6 +704,15 @@ function escapeHtml(text) {{
     var d = document.createElement('div');
     d.textContent = text;
     return d.innerHTML;
+}}
+
+function getRoleBadge(role) {{
+    if (!role) return '';
+    var colors = {{'product_manager':'var(--accent-cyan)','architect':'var(--accent-blue)','developer':'var(--success)','code_reviewer':'#f0883e','bug_hunter':'var(--error)','doc_writer':'var(--text-secondary)'}};
+    var labels = {{'product_manager':'产品经理','architect':'架构师','developer':'开发者','code_reviewer':'代码审查员','bug_hunter':'Bug猎人','doc_writer':'文档编写者'}};
+    var color = colors[role] || 'var(--text-secondary)';
+    var label = labels[role] || role;
+    return '<div style=\"font-size:10px;font-weight:600;color:' + color + ';margin-bottom:4px;\">[' + label + ']</div>';
 }}
 
 function scrollToBottom() {{
