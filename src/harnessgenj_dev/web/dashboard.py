@@ -583,10 +583,16 @@ function handleMessage(msg) {{
             break;
         case 'final_answer':
             if (msg.content) {{
-                var div = document.createElement('div');
-                div.className = 'msg ai';
-                div.innerHTML = formatContent(msg.content);
-                chat.appendChild(div);
+                // Replace last streaming message if exists, otherwise create new
+                var lastAi = chat.querySelector('.msg.ai:last-child');
+                if (lastAi) {{
+                    lastAi.innerHTML = formatContent(msg.content);
+                }} else {{
+                    var div = document.createElement('div');
+                    div.className = 'msg ai';
+                    div.innerHTML = formatContent(msg.content);
+                    chat.appendChild(div);
+                }}
             }}
             scrollToBottom();
             break;
@@ -1143,12 +1149,29 @@ class AgentSession:
             system_prompt = self._build_system_prompt(self.role)
             session.messages = [{"role": "system", "content": system_prompt}]
         session.messages.append({"role": "user", "content": content})
+        # Inject session history into agent state
+        agent.state.conversation_history = list(session.messages)
         await self._send_status("running")
+        accumulated = ""
         try:
-            result = await agent.run(content, role=self.role)
-            session.messages.append({"role": "assistant", "content": result})
-            await self.send({"type": "final_answer", "content": result, "iterations": agent.state.iteration_count, "role": self.role})
-            return result
+            async for chunk in agent.run_stream(content, role=self.role):
+                if self._interrupted:
+                    break
+                if isinstance(chunk, str):
+                    accumulated += chunk
+                    await self.send({"type": "text_chunk", "content": chunk, "role": self.role})
+            if accumulated:
+                session.messages.append({"role": "assistant", "content": accumulated})
+            if self._interrupted:
+                await self.send({"type": "final_answer", "content": accumulated + "\n[已中断]", "iterations": agent.state.iteration_count, "role": self.role})
+            else:
+                await self.send({"type": "final_answer", "content": accumulated, "iterations": agent.state.iteration_count, "role": self.role})
+            return accumulated
+        except asyncio.CancelledError:
+            if accumulated:
+                session.messages.append({"role": "assistant", "content": accumulated})
+                await self.send({"type": "final_answer", "content": accumulated + "\n[已取消]", "role": self.role})
+            raise
         except Exception as exc:
             await self.send({"type": "error", "message": str(exc)})
             return None
@@ -1256,14 +1279,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 if role:
                     session.role = role
                 if content:
-                    task = asyncio.create_task(session.run_develop(content))
+                    # Don't await task — let message loop stay responsive
+                    async def _run_and_save():
+                        try:
+                            await session.run_develop(content)
+                        except asyncio.CancelledError:
+                            pass
+                        except Exception:
+                            pass
+                        finally:
+                            session.save_session()
+                    task = asyncio.create_task(_run_and_save())
                     session._develop_task = task
-                    try:
-                        await task
-                    except asyncio.CancelledError:
-                        pass
-                    finally:
-                        session.save_session()
             elif msg_type == "interrupt":
                 session.interrupt()
             elif msg_type == "session_new":

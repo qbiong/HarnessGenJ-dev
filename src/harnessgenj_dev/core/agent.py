@@ -507,13 +507,19 @@ After documentation is confirmed, begin implementing the first phase:
             Text chunks as they arrive from the LLM.
         """
         self.state.is_running = True
-        self.state.conversation_history.clear()
         self.state.iteration_count = 0
 
-        system_prompt = self._build_system_prompt(role)
-        self.state.conversation_history.append(
-            {"role": "system", "content": system_prompt}
-        )
+        # Only add system prompt if history is empty
+        if not self.state.conversation_history:
+            system_prompt = self._build_system_prompt(role)
+            self.state.conversation_history.append(
+                {"role": "system", "content": system_prompt}
+            )
+        elif self.state.conversation_history[-1].get("role") != "user":
+            # Append user message only if last message isn't already the user input
+            self.state.conversation_history.append(
+                {"role": "user", "content": user_input}
+            )
         self.state.conversation_history.append(
             {"role": "user", "content": user_input}
         )
