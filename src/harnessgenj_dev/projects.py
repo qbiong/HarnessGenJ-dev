@@ -12,8 +12,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Framework workspace directory for user projects
-_WORKSPACE_DIR: Path = Path.home() / ".hgj-dev" / "workspace"
+# Framework workspace directory for user projects (relative to project root)
+_WORKSPACE_DIR: Path = Path(__file__).resolve().parent.parent.parent / "workspace"
 
 
 @dataclass

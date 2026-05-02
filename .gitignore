@@ -23,6 +23,11 @@ htmlcov/
 # Framework runtime data (user-specific)
 .hgj-dev/
 
+# Workspace — exclude all generated projects, keep .gitkeep
+workspace/*
+workspace/**/*
+!workspace/.gitkeep
+
 # OS
 .DS_Store
 Thumbs.db
