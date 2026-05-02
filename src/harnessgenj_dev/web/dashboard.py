@@ -225,13 +225,11 @@ body {{
 .btn-secondary:hover {{ color: var(--text-primary); border-color: var(--accent-cyan); }}
 
 /* Messages */
-/* Messages — group chat style: avatar + name outside, content in bubble */.msg-group {{ display: flex; align-items: flex-start; gap: 12px; margin: 16px 0; max-width: 88%; animation: msgSlide 0.25s ease-out; }}
-@keyframes msgSlide {{ from {{ opacity: 0; transform: translateY(8px); }} to {{ opacity: 1; transform: translateY(0); }} }}
-.msg-group.user {{ align-self: flex-end; flex-direction: row-reverse; }}
-.msg-group.ai {{ align-self: flex-start; }}
-.msg-group.system {{ align-self: center; max-width: 90%; }}
-.msg-avatar {{ width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: transform 0.15s ease; }}
-.msg-avatar:hover {{ transform: scale(1.1); }}
+/* Messages — avatar left/right, bubble auto-width */.msg-group {{ display: flex; align-items: flex-start; gap: 10px; margin: 14px 0; animation: msgSlide 0.2s ease-out; }}
+@keyframes msgSlide {{ from {{ opacity: 0; transform: translateY(6px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+.msg-group.user {{ flex-direction: row-reverse; }}
+.msg-group.system {{ justify-content: center; }}
+.msg-avatar {{ width: 32px; height: 32px; min-width: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }}
 .msg-avatar.pm {{ background: linear-gradient(135deg, #00d4ff22, #00d4ff44); color: #00d4ff; border: 1px solid #00d4ff33; }}
 .msg-avatar.arch {{ background: linear-gradient(135deg, #3b82f622, #3b82f644); color: #60a5fa; border: 1px solid #3b82f633; }}
 .msg-avatar.dev {{ background: linear-gradient(135deg, #10b98122, #10b98144); color: #34d399; border: 1px solid #10b98133; }}
@@ -239,19 +237,19 @@ body {{
 .msg-avatar.hunt {{ background: linear-gradient(135deg, #ef444422, #ef444444); color: #f87171; border: 1px solid #ef444433; }}
 .msg-avatar.doc {{ background: linear-gradient(135deg, #94a3b822, #94a3b844); color: #cbd5e1; border: 1px solid #94a3b833; }}
 .msg-avatar.user {{ background: linear-gradient(135deg, #a855f722, #a855f744); color: #c084fc; border: 1px solid #a855f733; }}
-.msg-body {{ flex: 1; min-width: 0; }}
-.msg-sender {{ font-size: 11px; font-weight: 600; margin-bottom: 4px; padding-left: 4px; letter-spacing: 0.3px; }}
+.msg-body {{ max-width: 75%; }}
+.msg-sender {{ font-size: 10px; font-weight: 600; margin-bottom: 3px; padding-left: 2px; letter-spacing: 0.2px; }}
 .msg-sender.pm {{ color: #00d4ff; }}
 .msg-sender.arch {{ color: #60a5fa; }}
 .msg-sender.dev {{ color: #34d399; }}
 .msg-sender.rev {{ color: #fbbf24; }}
 .msg-sender.hunt {{ color: #f87171; }}
 .msg-sender.doc {{ color: #94a3b8; }}
-.msg-bubble {{ padding: 12px 16px; border-radius: 14px; font-size: 13px; line-height: 1.7; background: linear-gradient(135deg, rgba(19,25,32,0.9), rgba(26,34,48,0.8)); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 2px 12px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.02) inset; backdrop-filter: blur(8px); position: relative; }}
+.msg-bubble {{ display: inline-block; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.6; background: linear-gradient(135deg, rgba(19,25,32,0.9), rgba(26,34,48,0.8)); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 1px 6px rgba(0,0,0,0.12); }}
 .msg-bubble code {{ background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #e06c75; }}
-.msg-bubble pre {{ background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px; margin: 8px 0; border: 1px solid rgba(255,255,255,0.04); }}
+.msg-bubble pre {{ background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 12px; margin: 6px 0; border: 1px solid rgba(255,255,255,0.04); }}
 .msg-group:not(.user) .msg-bubble {{ border-color: rgba(0,212,255,0.08); }}
-.msg-group.user .msg-bubble {{ background: linear-gradient(135deg, rgba(19,25,32,0.95), rgba(26,34,48,0.85)); border-color: rgba(168,85,247,0.15); }}
+.msg-group.user .msg-bubble {{ border-color: rgba(168,85,247,0.15); }}
 /* Tool call card */
 .tool-card {{ align-self: flex-start; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; max-width: 70%; margin: 4px 0; font-size: 12px; }}
 .tool-card .tc-name {{ color: var(--accent-cyan); font-weight: 600; font-size: 11px; }}
@@ -699,9 +697,9 @@ function renderMsg(role, className, content) {{
 
 function renderUserMsg(content) {{
     var html = '<div class="msg-group user">';
-    html += '<div class="msg-avatar user">YOU</div>';
+    html += '<div class="msg-avatar user">U</div>';
     html += '<div class="msg-body">';
-    html += '<div class="msg-sender" style="color:var(--accent-purple);">你</div>';
+    html += '<div class="msg-sender" style="color:#c084fc;text-align:right;">你</div>';
     html += '<div class="msg-bubble">' + escapeHtml(content) + '</div>';
     html += '</div></div>';
     return html;
