@@ -225,11 +225,7 @@ body {{
 .btn-secondary:hover {{ color: var(--text-primary); border-color: var(--accent-cyan); }}
 
 /* Messages */
-.msg {{ padding: 10px 14px; border-radius: var(--radius-md); max-width: 85%; font-size: 13px; line-height: 1.6; }}
-.msg.user {{ align-self: flex-end; background: var(--bg-tertiary); border: 1px solid var(--border); }}
-.msg.ai {{ align-self: flex-start; background: var(--bg-secondary); border: 1px solid var(--border); }}
-.msg.system {{ align-self: center; font-size: 11px; color: var(--text-muted); }}
-.msg.ai .role-badge {{ font-size: 10px; font-weight: 600; color: var(--accent-cyan); margin-bottom: 4px; }}
+/* Messages — group chat style: avatar + name outside, content in bubble */.msg-group {{ display: flex; align-items: flex-start; gap: 10px; margin: 8px 0; max-width: 85%; }}.msg-group.user {{ align-self: flex-end; flex-direction: row-reverse; }}.msg-group.ai {{ align-self: flex-start; }}.msg-group.system {{ align-self: center; max-width: 100%; }}.msg-avatar {{ width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; }}.msg-avatar.pm {{ background: rgba(0,212,255,0.15); }}.msg-avatar.arch {{ background: rgba(59,130,246,0.15); }}.msg-avatar.dev {{ background: rgba(16,185,129,0.15); }}.msg-avatar.rev {{ background: rgba(240,136,62,0.15); }}.msg-avatar.hunt {{ background: rgba(239,68,68,0.15); }}.msg-avatar.doc {{ background: rgba(148,163,184,0.15); }}.msg-avatar.user {{ background: rgba(168,85,247,0.15); }}.msg-body {{ flex: 1; min-width: 0; }}.msg-sender {{ font-size: 11px; font-weight: 600; margin-bottom: 3px; }}.msg-sender.pm {{ color: var(--accent-cyan); }}.msg-sender.arch {{ color: var(--accent-blue); }}.msg-sender.dev {{ color: var(--success); }}.msg-sender.rev {{ color: #f0883e; }}.msg-sender.hunt {{ color: var(--error); }}.msg-sender.doc {{ color: var(--text-secondary); }}.msg-bubble {{ padding: 10px 14px; border-radius: var(--radius-md); font-size: 13px; line-height: 1.6; background: var(--bg-secondary); border: 1px solid var(--border); }}.msg-group.user .msg-bubble {{ background: var(--bg-tertiary); }}
 .msg pre {{ background: #0a0e14; padding: 8px; border-radius: 4px; overflow-x: auto; font-size: 12px; margin: 6px 0; }}
 .msg code {{ background: #0a0e14; padding: 2px 6px; border-radius: 3px; font-size: 12px; color: #e06c75; }}
 .msg strong {{ color: var(--text-primary); font-weight: 700; }}
@@ -572,12 +568,13 @@ function handleMessage(msg) {{
                 chat.appendChild(div);
                 lastMsg = div;
             }}
-            lastMsg.innerHTML += escapeHtml(msg.content);
+            lastMsg.querySelector('.msg-bubble').innerHTML += escapeHtml(msg.content);
             scrollToBottom();
             break;
         case 'tool_call':
             var card = document.createElement('div');
             card.className = 'tool-card';
+            card.style.marginLeft = '42px';
             card.innerHTML = '<div class="tc-name">🔧 ' + escapeHtml(msg.name) + '</div><div class="tc-status">执行中...</div>';
             chat.appendChild(card);
             scrollToBottom();
@@ -594,35 +591,24 @@ function handleMessage(msg) {{
             break;
         case 'final_answer':
             if (msg.content) {{
-                var lastAi = chat.querySelector('.msg.ai:last-child');
-                var badgeHtml = getRoleBadge(msg.role);
+                var lastAi = chat.querySelector('.msg-group.ai:last-child');
                 if (lastAi) {{
-                    lastAi.innerHTML = badgeHtml + formatContent(msg.content);
+                    lastAi.querySelector('.msg-bubble').innerHTML = formatContent(msg.content);
                 }} else {{
-                    var div = document.createElement('div');
-                    div.className = 'msg ai';
-                    div.innerHTML = badgeHtml + formatContent(msg.content);
-                    chat.appendChild(div);
+                    addAiMsg(msg.content, msg.role || 'product_manager');
                 }}
             }}
             scrollToBottom();
             break;
         case 'agent_dispatch':
-            // Show agent dispatch as a separator message
             var div = document.createElement('div');
-            div.className = 'msg system';
-            div.innerHTML = '<span style="color:var(--accent-cyan);">🔄 正在调用 ' + escapeHtml(msg.role_display || msg.role) + '...</span>';
+            div.className = 'msg-group system';
+            div.innerHTML = '<div class="msg-bubble" style="background:transparent;border:none;font-size:11px;color:var(--text-muted);">🔄 正在调用 <span style="color:var(--accent-cyan);">' + escapeHtml(msg.role_display || msg.role) + '</span>...</div>';
             chat.appendChild(div);
             scrollToBottom();
             break;
         case 'agent_response':
-            // Show agent response as a separate message card with role badge
-            var div = document.createElement('div');
-            div.className = 'msg ai';
-            var roleColor = {{'product_manager':'var(--accent-cyan)','architect':'var(--accent-blue)','developer':'var(--success)','code_reviewer':'#f0883e','bug_hunter':'var(--error)','doc_writer':'var(--text-secondary)'}}[msg.role] || 'var(--accent-cyan)';
-            div.innerHTML = '<div class="role-badge" style="color:' + roleColor + ';font-weight:600;font-size:10px;margin-bottom:4px;">[' + escapeHtml(msg.role_display || msg.role) + ']</div>' + formatContent(msg.content || '');
-            chat.appendChild(div);
-            scrollToBottom();
+            addAiMsg(msg.content, msg.role);
             break;
         case 'error':
             var div = document.createElement('div');
@@ -637,7 +623,7 @@ function handleMessage(msg) {{
                 chat.innerHTML = '';
                 for (var m of msg.messages) {{
                     if (m.role === 'user') addMsg('user', m.content);
-                    else if (m.role === 'assistant') addMsg('ai', m.content);
+                    else if (m.role === 'assistant') addMsg('ai', m.content, 'product_manager');
                 }}
             }}
             loadSessions();
@@ -678,17 +664,19 @@ function setMode(m) {{
 }}
 
 // ---- Chat helpers ----
-function addMsg(type, content) {{
+function addMsg(type, content, role) {{
     var div = document.createElement('div');
-    div.className = 'msg ' + type;
-    if (type === 'ai') div.innerHTML = formatContent(content);
-    else div.textContent = content;
+    if (type === 'ai') {{
+        div.innerHTML = renderMsg(role || 'product_manager', 'ai', formatContent(content));
+    }} else {{
+        div.innerHTML = renderUserMsg(content);
+    }}
     chat.appendChild(div);
     scrollToBottom();
 }}
 
-function addAiMsg(content) {{
-    addMsg('ai', content);
+function addAiMsg(content, role) {{
+    addMsg('ai', content, role);
 }}
 
 marked.setOptions({{
