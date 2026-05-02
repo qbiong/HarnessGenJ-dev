@@ -524,21 +524,25 @@ After documentation is confirmed, begin implementing the first phase:
             Final response text from the agent.
         """
         self.state.is_running = True
-        self.state.conversation_history.clear()
-        self.state.iteration_count = 0
+
+        # Don't clear history if already loaded from session
+        if not self.state.conversation_history:
+            self.state.iteration_count = 0
+            system_prompt = self._build_system_prompt(role)
+            self.state.conversation_history.append(
+                {"role": "system", "content": system_prompt}
+            )
+            self.state.conversation_history.append(
+                {"role": "user", "content": user_input}
+            )
+        elif self.state.conversation_history[-1].get("role") != "user":
+            self.state.conversation_history.append(
+                {"role": "user", "content": user_input}
+            )
 
         # Fire session_start hook
         hooks = get_hook_manager()
         await hooks.fire("session_start", role=role)
-
-        # Build system prompt
-        system_prompt = self._build_system_prompt(role)
-        self.state.conversation_history.append(
-            {"role": "system", "content": system_prompt}
-        )
-        self.state.conversation_history.append(
-            {"role": "user", "content": user_input}
-        )
 
         # Fire user_prompt_submit hook
         await hooks.fire("user_prompt_submit", prompt=user_input, role=role)
@@ -561,22 +565,18 @@ After documentation is confirmed, begin implementing the first phase:
             Text chunks as they arrive from the LLM.
         """
         self.state.is_running = True
-        self.state.iteration_count = 0
 
         # Only add system prompt if history is empty
         if not self.state.conversation_history:
+            self.state.iteration_count = 0
             system_prompt = self._build_system_prompt(role)
             self.state.conversation_history.append(
                 {"role": "system", "content": system_prompt}
             )
-        elif self.state.conversation_history[-1].get("role") != "user":
-            # Append user message only if last message isn't already the user input
+        if not self.state.conversation_history or self.state.conversation_history[-1].get("role") != "user":
             self.state.conversation_history.append(
                 {"role": "user", "content": user_input}
             )
-        self.state.conversation_history.append(
-            {"role": "user", "content": user_input}
-        )
 
         try:
             async for chunk in self._react_loop_stream():

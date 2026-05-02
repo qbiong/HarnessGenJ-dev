@@ -1165,14 +1165,15 @@ class AgentSession:
         await self._send_status("running")
         accumulated = ""
         try:
-            async for chunk in agent.run_stream(content, role=self.role):
-                if self._interrupted:
-                    break
-                if isinstance(chunk, str):
-                    accumulated += chunk
-                    await self.send({"type": "text_chunk", "content": chunk, "role": self.role})
+            # Use non-streaming ReAct loop which properly handles native tool calls.
+            # Send status updates to let user know agent is working.
+            await self.send({"type": "text_chunk", "content": "", "role": self.role})
+            result = await agent.run(content, role=self.role)
+            accumulated = result or ""
             if accumulated:
                 session.messages.append({"role": "assistant", "content": accumulated})
+                # Simulate streaming by sending the full response as a chunk
+                await self.send({"type": "text_chunk", "content": accumulated, "role": self.role})
 
             # Check for @mentions and dispatch to other agents
             dispatch_result = ""
