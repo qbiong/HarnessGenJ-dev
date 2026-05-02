@@ -1173,10 +1173,18 @@ class AgentSession:
                     await self.send({"type": "text_chunk", "content": chunk, "role": self.role})
             if accumulated:
                 session.messages.append({"role": "assistant", "content": accumulated})
+
+            # Check for @mentions and dispatch to other agents
+            dispatch_result = ""
+            if accumulated and "@" in accumulated:
+                dispatch_result = await self._dispatch_mentions(accumulated)
+                if dispatch_result:
+                    await self.send({"type": "text_chunk", "content": dispatch_result, "role": self.role})
+
             if self._interrupted:
                 await self.send({"type": "final_answer", "content": accumulated + "\n[已中断]", "iterations": agent.state.iteration_count, "role": self.role})
             else:
-                await self.send({"type": "final_answer", "content": accumulated, "iterations": agent.state.iteration_count, "role": self.role})
+                await self.send({"type": "final_answer", "content": accumulated + dispatch_result, "iterations": agent.state.iteration_count, "role": self.role})
             return accumulated
         except asyncio.CancelledError:
             if accumulated:
@@ -1189,6 +1197,51 @@ class AgentSession:
         finally:
             await self._send_status("idle")
             self._interrupted = False
+
+    async def _dispatch_mentions(self, text: str) -> str:
+        """Parse @mentions from agent response and execute sub-agent tasks.
+
+        Returns combined results from all dispatched agents.
+        """
+        import re
+        from harnessgenj_dev.core.agent import Agent
+        from harnessgenj_dev.llm.gateway import LLMGateway
+
+        mentions = re.findall(r'@(product_manager|architect|developer|code_reviewer|bug_hunter|doc_writer)', text)
+        if not mentions:
+            return ""
+
+        seen = set()
+        results = []
+        for role in mentions:
+            if role in seen or role == self.role:
+                continue
+            seen.add(role)
+
+            await self.send({"type": "text_chunk", "content": f"\n[委派任务给 {role}...]\n", "role": self.role})
+
+            try:
+                sub_agent = Agent(
+                    llm_gateway=LLMGateway(
+                        provider=_get_provider(), model=_get_model(),
+                        api_key=_get_api_key(), base_url=_get_base_url() or None,
+                    ),
+                    config=_ConfigShim(),
+                )
+                task_prompt = (
+                    f"You have been assigned a task by the {self.role}. "
+                    f"Context from the {self.role}'s response:\n\n{text[:2000]}\n\n"
+                    f"Please complete your part. Focus only on your role's responsibility. "
+                    f"Do NOT do work that belongs to other roles. "
+                    f"Do NOT respond as the {self.role}. Respond as the {role}."
+                )
+                sub_result = await sub_agent.run(task_prompt, role=role)
+                results.append(f"[{role}]: {sub_result}")
+                await self.send({"type": "text_chunk", "content": f"\n[{role} 完成]\n", "role": self.role})
+            except Exception as exc:
+                results.append(f"[{role} 错误]: {exc}")
+
+        return "\n\n---\n" + "\n\n".join(results) if results else ""
 
     async def run_develop_oneshot(self, content: str) -> dict[str, Any]:
         from harnessgenj_dev.core.agent import Agent
