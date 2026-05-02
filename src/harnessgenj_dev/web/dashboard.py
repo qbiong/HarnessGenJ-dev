@@ -560,11 +560,11 @@ function handleMessage(msg) {{
             else {{ statusDot.className = 'status-dot idle'; statusText.textContent = '就绪'; btnSend.style.display = ''; btnStop.style.display = 'none'; }}
             break;
         case 'text_chunk':
-            var lastMsg = chat.querySelector('.msg.ai:last-child');
+            var lastMsg = chat.querySelector('.msg-group.ai:last-child');
             if (!lastMsg) {{
                 var div = document.createElement('div');
-                div.className = 'msg ai';
-                div.innerHTML = getRoleBadge(msg.role);
+                div.className = 'msg-group ai';
+                div.innerHTML = renderMsg(msg.role || 'product_manager', 'ai', '');
                 chat.appendChild(div);
                 lastMsg = div;
             }}
@@ -612,7 +612,7 @@ function handleMessage(msg) {{
             break;
         case 'error':
             var div = document.createElement('div');
-            div.className = 'msg system';
+            div.className = 'msg-group system';
             div.innerHTML = '<span style="color:var(--error);">错误: ' + escapeHtml(msg.message) + '</span>';
             chat.appendChild(div);
             scrollToBottom();
