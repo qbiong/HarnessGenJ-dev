@@ -20,10 +20,8 @@ venv/
 .coverage
 htmlcov/
 
-# Framework data (user-specific)
-.hgj-dev/sessions/
-.hgj-dev/web_settings.json
-.hgj-dev/workspace/
+# Framework runtime data (user-specific)
+.hgj-dev/
 
 # OS
 .DS_Store
