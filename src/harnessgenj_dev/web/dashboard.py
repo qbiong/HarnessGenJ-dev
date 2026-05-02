@@ -1183,29 +1183,30 @@ class AgentSession:
             system_prompt = self._build_system_prompt(self.role)
             session.messages = [{"role": "system", "content": system_prompt}]
         session.messages.append({"role": "user", "content": content})
-        # Inject session history into agent state
         agent.state.conversation_history = list(session.messages)
         await self._send_status("running")
         accumulated = ""
         try:
-            # Use non-streaming ReAct loop which properly handles native tool calls.
-            # Send status updates to let user know agent is working.
             await self.send({"type": "text_chunk", "content": "", "role": self.role})
             result = await agent.run(content, role=self.role)
             accumulated = result or ""
             if accumulated:
                 session.messages.append({"role": "assistant", "content": accumulated})
-                # Simulate streaming by sending the full response as a chunk
                 await self.send({"type": "text_chunk", "content": accumulated, "role": self.role})
 
-            # Check for @mentions and dispatch to other agents
-            if accumulated and "@" in accumulated:
-                await self._dispatch_mentions(accumulated)
-
-            if self._interrupted:
-                await self.send({"type": "final_answer", "content": accumulated + "\n[已中断]", "iterations": agent.state.iteration_count, "role": self.role})
-            else:
+            # Send PM's acknowledgment to user first
+            if not self._interrupted:
                 await self.send({"type": "final_answer", "content": accumulated, "iterations": agent.state.iteration_count, "role": self.role})
+
+            # Only PM dispatches agents; other roles report back to PM
+            dispatch_result = ""
+            if accumulated and "@" in accumulated and self.role == "product_manager":
+                dispatch_result = await self._dispatch_mentions(accumulated, content)
+
+            # If dispatch happened, PM collects results and presents summary
+            if dispatch_result and not self._interrupted:
+                await self.send({"type": "final_answer", "content": dispatch_result, "iterations": agent.state.iteration_count, "role": "product_manager"})
+
             return accumulated
         except asyncio.CancelledError:
             if accumulated:
@@ -1228,64 +1229,77 @@ class AgentSession:
         "doc_writer": "文档编写者",
     }
 
-    async def _dispatch_mentions(self, text: str) -> None:
-        """Parse @mentions and execute sub-agent tasks. Each agent response sent as separate message."""
+        
+    async def _dispatch_mentions(self, pm_text: str, user_request: str) -> str:
+        """PM dispatches @mentioned agents, collects results, synthesizes summary.
+        Only PM dispatches; agents report findings back to PM.
+        """
         import re
         from harnessgenj_dev.core.agent import Agent
         from harnessgenj_dev.llm.gateway import LLMGateway
 
-        mentions = re.findall(r'@(product_manager|architect|developer|code_reviewer|bug_hunter|doc_writer)', text)
+        mentions = re.findall(r'@(architect|developer|code_reviewer|bug_hunter|doc_writer)', pm_text)
         if not mentions:
-            return
+            return ""
 
         seen = set()
+        agent_results = {}
         for role in mentions:
-            if role in seen or role == self.role:
+            if role in seen:
                 continue
             seen.add(role)
 
-            # Announce agent dispatch as a separate message
             role_display = self._ROLE_DISPLAY.get(role, role)
-            await self.send({
-                "type": "agent_dispatch",
-                "role": role,
-                "role_display": role_display,
-                "status": "started",
-            })
+            await self.send({"type": "agent_dispatch", "role": role, "role_display": role_display, "status": "started"})
 
             try:
                 sub_agent = Agent(
-                    llm_gateway=LLMGateway(
-                        provider=_get_provider(), model=_get_model(),
-                        api_key=_get_api_key(), base_url=_get_base_url() or None,
-                    ),
+                    llm_gateway=LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None),
                     config=_ConfigShim(),
                 )
+                ctx_parts = [
+                    "## User Original Request\n" + user_request[:1500],
+                    "## Product Manager Analysis\n" + pm_text[:2000],
+                ]
+                if agent_results:
+                    prev = "\n".join("[" + r + "] " + agent_results[r][:800] for r in agent_results)
+                    ctx_parts.append("## Previous Agent Findings\n" + prev)
+
                 task_prompt = (
-                    f"You have been assigned a task by the {self.role}. "
-                    f"Context from the {self.role}'s response:\n\n{text[:2000]}\n\n"
-                    f"Please complete your part. Focus only on your role's responsibility. "
-                    f"Do NOT do work that belongs to other roles. "
-                    f"Do NOT respond as the {self.role}. Respond as the {role}."
+                    "You are the " + role_display + ". PM needs your expertise.\n\n"
+                    "Complete your part based on the context. Focus ONLY on your role.\n"
+                    "Do NOT assign tasks to other agents. Report back to PM.\n\n"
+                    + "\n".join(ctx_parts)
                 )
                 sub_result = await sub_agent.run(task_prompt, role=role)
-
-                # Send agent's response as a separate message card
-                await self.send({
-                    "type": "agent_response",
-                    "role": role,
-                    "role_display": role_display,
-                    "content": sub_result,
-                })
+                agent_results[role] = sub_result
+                await self.send({"type": "agent_response", "role": role, "role_display": role_display, "content": sub_result})
             except Exception as exc:
-                await self.send({
-                    "type": "agent_response",
-                    "role": role,
-                    "role_display": role_display,
-                    "content": f"错误：{exc}",
-                })
+                await self.send({"type": "agent_response", "role": role, "role_display": role_display, "content": "\u9519\u8bef: " + str(exc)})
+                agent_results[role] = "(error)"
 
-    async def run_develop_oneshot(self, content: str) -> dict[str, Any]:
+        if not agent_results:
+            return ""
+
+        # PM synthesizes final summary
+        try:
+            summary_agent = Agent(
+                llm_gateway=LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None),
+                config=_ConfigShim(),
+            )
+            results_text = "\n".join("## [" + self._ROLE_DISPLAY.get(r, r) + "]\n" + agent_results[r][:1500] for r in agent_results)
+            summary_prompt = (
+                "You are the PM. Here are the team results:\n\n"
+                "## User Request\n" + user_request[:1000] + "\n"
+                + results_text + "\n\n"
+                "Summarize what was accomplished, key findings, and next steps. Be professional and encouraging."
+            )
+            return await summary_agent.run(summary_prompt, role="product_manager")
+        except Exception:
+            parts = ["[" + self._ROLE_DISPLAY.get(r, r) + "] done" for r in agent_results]
+            return "Team work complete.\n" + "\n".join(parts)
+
+async def run_develop_oneshot(self, content: str) -> dict[str, Any]:
         from harnessgenj_dev.core.agent import Agent
         from harnessgenj_dev.llm.gateway import LLMGateway
         from harnessgenj_dev.tools.registry import auto_register
