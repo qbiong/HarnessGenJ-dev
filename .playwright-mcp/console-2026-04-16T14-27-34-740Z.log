@@ -1,0 +1,3 @@
+[      13ms] Invalid or unexpected token
+[    8910ms] [LOG] HTML entity found @ :7
+[    8911ms] [LOG] Compile error at 867 : .6-plus';\n\n            function updateKeyInfo() {\n           @ :25

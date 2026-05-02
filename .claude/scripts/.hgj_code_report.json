@@ -1,0 +1,1004 @@
+{
+  "audit_type": "code",
+  "total_issues": 142,
+  "critical": 0,
+  "warnings": 10,
+  "infos": 132,
+  "issues": [
+    {
+      "category": "style",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\cli.py:34",
+      "message": "Line too long (149 > 120 chars)",
+      "recommendation": "Break line or restructure"
+    },
+    {
+      "category": "style",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\core\\agent.py:70",
+      "message": "Line too long (140 > 120 chars)",
+      "recommendation": "Break line or restructure"
+    },
+    {
+      "category": "style",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\core\\agent.py:71",
+      "message": "Line too long (130 > 120 chars)",
+      "recommendation": "Break line or restructure"
+    },
+    {
+      "category": "style",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\core\\agent.py:72",
+      "message": "Line too long (122 > 120 chars)",
+      "recommendation": "Break line or restructure"
+    },
+    {
+      "category": "style",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\file_ops.py:26",
+      "message": "Line too long (128 > 120 chars)",
+      "recommendation": "Break line or restructure"
+    },
+    {
+      "category": "style",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\file_ops.py:100",
+      "message": "Line too long (135 > 120 chars)",
+      "recommendation": "Break line or restructure"
+    },
+    {
+      "category": "complexity",
+      "severity": "warning",
+      "location": "src\\harnessgenj_dev\\cli.py:208",
+      "message": "Function '_run_repl' is 81 lines (>80)",
+      "recommendation": "Consider splitting into smaller functions"
+    },
+    {
+      "category": "complexity",
+      "severity": "warning",
+      "location": "src\\harnessgenj_dev\\cli.py:208",
+      "message": "Function '_run_repl' has ~13 branches (>10)",
+      "recommendation": "Simplify control flow or extract helper functions"
+    },
+    {
+      "category": "complexity",
+      "severity": "warning",
+      "location": "src\\harnessgenj_dev\\scanner\\code_search.py:170",
+      "message": "Function '_search_python' has ~12 branches (>10)",
+      "recommendation": "Simplify control flow or extract helper functions"
+    },
+    {
+      "category": "complexity",
+      "severity": "warning",
+      "location": "src\\harnessgenj_dev\\tools\\code_ops.py:94",
+      "message": "Function '_search_with_python' has ~13 branches (>10)",
+      "recommendation": "Simplify control flow or extract helper functions"
+    },
+    {
+      "category": "complexity",
+      "severity": "warning",
+      "location": "src\\harnessgenj_dev\\tui\\app.py:120",
+      "message": "Function 'on_input_submitted' is 84 lines (>80)",
+      "recommendation": "Consider splitting into smaller functions"
+    },
+    {
+      "category": "complexity",
+      "severity": "warning",
+      "location": "src\\harnessgenj_dev\\tui\\app.py:120",
+      "message": "Function 'on_input_submitted' has ~11 branches (>10)",
+      "recommendation": "Simplify control flow or extract helper functions"
+    },
+    {
+      "category": "resources",
+      "severity": "warning",
+      "location": "src\\harnessgenj_dev\\tools\\code_ops.py:40",
+      "message": "subprocess.run without timeout",
+      "recommendation": "Add timeout parameter to prevent hanging"
+    },
+    {
+      "category": "resources",
+      "severity": "warning",
+      "location": "src\\harnessgenj_dev\\tools\\code_ops.py:81",
+      "message": "subprocess.run without timeout",
+      "recommendation": "Add timeout parameter to prevent hanging"
+    },
+    {
+      "category": "security",
+      "severity": "warning",
+      "location": "src\\harnessgenj_dev\\executor\\python_executor.py:83",
+      "message": "exec() is dangerous",
+      "recommendation": "Avoid dynamic code execution or use strict sandboxing"
+    },
+    {
+      "category": "security",
+      "severity": "warning",
+      "location": "src\\harnessgenj_dev\\tools\\test_ops.py:31",
+      "message": "exec() is dangerous",
+      "recommendation": "Avoid dynamic code execution or use strict sandboxing"
+    },
+    {
+      "category": "tests",
+      "severity": "info",
+      "location": "tests\\llm\\test_gateway.py:59",
+      "message": "Test 'test_unknown_provider_raises' has no assertions",
+      "recommendation": "Add assertions to make the test meaningful"
+    },
+    {
+      "category": "tests",
+      "severity": "info",
+      "location": "tests\\llm\\test_llm_errors.py:9",
+      "message": "Test 'test_invalid_provider_raises' has no assertions",
+      "recommendation": "Add assertions to make the test meaningful"
+    },
+    {
+      "category": "tests",
+      "severity": "info",
+      "location": "tests\\llm\\test_llm_errors.py:19",
+      "message": "Test 'test_degradation_with_empty_chain' has no assertions",
+      "recommendation": "Add assertions to make the test meaningful"
+    },
+    {
+      "category": "tests",
+      "severity": "info",
+      "location": "tests\\llm\\test_providers.py:53",
+      "message": "Test 'test_base_provider_is_abstract' has no assertions",
+      "recommendation": "Add assertions to make the test meaningful"
+    },
+    {
+      "category": "tests",
+      "severity": "info",
+      "location": "tests\\llm\\test_providers.py:77",
+      "message": "Test 'test_provider_missing_sdk_raises' has no assertions",
+      "recommendation": "Add assertions to make the test meaningful"
+    },
+    {
+      "category": "tests",
+      "severity": "info",
+      "location": "tests\\llm\\test_providers.py:111",
+      "message": "Test 'test_gateway_unknown_provider' has no assertions",
+      "recommendation": "Add assertions to make the test meaningful"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\cli.py:38",
+      "message": "Magic number: 20",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\cli.py:55",
+      "message": "Magic number: 50",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\cli.py:58",
+      "message": "Magic number: 50",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\cli.py:193",
+      "message": "Magic number: 40",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\cli.py:202",
+      "message": "Magic number: 130",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\cli.py:301",
+      "message": "Magic number: 30",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\cli.py:280",
+      "message": "Magic number: 40",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\config.py:18",
+      "message": "Magic number: 4096",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\config.py:19",
+      "message": "Magic number: 0.1",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\config.py:21",
+      "message": "Magic number: 3",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\config.py:23",
+      "message": "Magic number: 60.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\config.py:33",
+      "message": "Magic number: 30",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\config.py:40",
+      "message": "Magic number: 20",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\config.py:41",
+      "message": "Magic number: 3",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\core\\agent.py:32",
+      "message": "Magic number: 20",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\core\\context_manager.py:14",
+      "message": "Magic number: 128000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\core\\context_manager.py:21",
+      "message": "Magic number: 0.8",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\core\\context_manager.py:37",
+      "message": "Magic number: 10",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\core\\context_manager.py:73",
+      "message": "Magic number: 4",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\core\\context_manager.py:58",
+      "message": "Magic number: 4",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\executor\\python_executor.py:21",
+      "message": "Magic number: 256",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\executor\\python_executor.py:20",
+      "message": "Magic number: 10",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\executor\\python_executor.py:20",
+      "message": "Magic number: 1024",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\executor\\python_executor.py:49",
+      "message": "Magic number: 30",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\executor\\python_executor.py:111",
+      "message": "Magic number: 3",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\executor\\sandbox.py:26",
+      "message": "Magic number: 30",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\executor\\shell_executor.py:15",
+      "message": "Magic number: 10",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\executor\\shell_executor.py:15",
+      "message": "Magic number: 1024",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\executor\\shell_executor.py:17",
+      "message": "Magic number: 30",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\hgj\\roles.py:29",
+      "message": "Magic number: 20",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\hgj\\roles.py:43",
+      "message": "Magic number: 30",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\hgj\\roles.py:56",
+      "message": "Magic number: 15",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\hgj\\roles.py:69",
+      "message": "Magic number: 20",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\hgj\\roles.py:81",
+      "message": "Magic number: 20",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\hgj\\roles.py:94",
+      "message": "Magic number: 15",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:57",
+      "message": "Magic number: 3",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:59",
+      "message": "Magic number: 60.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:60",
+      "message": "Magic number: 0.1",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:258",
+      "message": "Magic number: 0.1",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:259",
+      "message": "Magic number: 4096",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:312",
+      "message": "Magic number: 0.1",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:313",
+      "message": "Magic number: 4096",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:128",
+      "message": "Magic number: 0.1",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:468",
+      "message": "Magic number: 1000000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:457",
+      "message": "Magic number: 15.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:457",
+      "message": "Magic number: 75.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:458",
+      "message": "Magic number: 3.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:458",
+      "message": "Magic number: 15.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:459",
+      "message": "Magic number: 0.8",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:459",
+      "message": "Magic number: 4.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:462",
+      "message": "Magic number: 2.5",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:462",
+      "message": "Magic number: 10.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:463",
+      "message": "Magic number: 0.15",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:463",
+      "message": "Magic number: 0.6",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:464",
+      "message": "Magic number: 10.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py:464",
+      "message": "Magic number: 30.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:22",
+      "message": "Magic number: 3.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:22",
+      "message": "Magic number: 15.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:22",
+      "message": "Magic number: 200000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:23",
+      "message": "Magic number: 15.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:23",
+      "message": "Magic number: 75.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:23",
+      "message": "Magic number: 200000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:24",
+      "message": "Magic number: 0.8",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:24",
+      "message": "Magic number: 4.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:24",
+      "message": "Magic number: 200000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:25",
+      "message": "Magic number: 2.5",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:25",
+      "message": "Magic number: 10.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:25",
+      "message": "Magic number: 128000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:26",
+      "message": "Magic number: 0.15",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:26",
+      "message": "Magic number: 0.6",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:26",
+      "message": "Magic number: 128000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\model_router.py:34",
+      "message": "Magic number: 1000000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\token_counter.py:35",
+      "message": "Magic number: 3",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\token_counter.py:14",
+      "message": "Magic number: 4",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\code_search.py:27",
+      "message": "Magic number: 40",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\code_search.py:252",
+      "message": "Magic number: 50",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\code_search.py:74",
+      "message": "Magic number: 5",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\code_search.py:140",
+      "message": "Magic number: 30",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\project_index.py:34",
+      "message": "Magic number: 10",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\code_ops.py:12",
+      "message": "Magic number: 20000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\code_ops.py:142",
+      "message": "Magic number: 500",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\code_ops.py:81",
+      "message": "Magic number: 10",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\code_ops.py:139",
+      "message": "Magic number: 500",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\code_ops.py:40",
+      "message": "Magic number: 5",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\code_ops.py:90",
+      "message": "Magic number: 1000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\code_ops.py:133",
+      "message": "Magic number: 40",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\file_ops.py:108",
+      "message": "Magic number: 3",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\git_ops.py:66",
+      "message": "Magic number: 10",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\git_ops.py:19",
+      "message": "Magic number: 10",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\git_ops.py:62",
+      "message": "Magic number: 10",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\registry.py:102",
+      "message": "Magic number: 50",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\shell_ops.py:11",
+      "message": "Magic number: 50000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\shell_ops.py:29",
+      "message": "Magic number: 30",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\shell_ops.py:23",
+      "message": "Magic number: 30",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\test_ops.py:36",
+      "message": "Magic number: 120",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\test_ops.py:42",
+      "message": "Magic number: 20000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tui\\app.py:88",
+      "message": "Magic number: 50",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tui\\app.py:190",
+      "message": "Magic number: 50",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\anthropic.py:117",
+      "message": "Magic number: 0.1",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\anthropic.py:118",
+      "message": "Magic number: 4096",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\anthropic.py:191",
+      "message": "Magic number: 0.1",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\anthropic.py:192",
+      "message": "Magic number: 4096",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\anthropic.py:77",
+      "message": "Magic number: 3.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\anthropic.py:78",
+      "message": "Magic number: 15.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\anthropic.py:79",
+      "message": "Magic number: 3.75",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\anthropic.py:80",
+      "message": "Magic number: 0.3",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\anthropic.py:87",
+      "message": "Magic number: 1000000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\base.py:30",
+      "message": "Magic number: 0.1",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\base.py:31",
+      "message": "Magic number: 4096",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\base.py:54",
+      "message": "Magic number: 0.1",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\base.py:55",
+      "message": "Magic number: 4096",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\openai.py:118",
+      "message": "Magic number: 0.1",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\openai.py:119",
+      "message": "Magic number: 4096",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\openai.py:177",
+      "message": "Magic number: 0.1",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\openai.py:178",
+      "message": "Magic number: 4096",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\openai.py:81",
+      "message": "Magic number: 2.5",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\openai.py:81",
+      "message": "Magic number: 10.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\openai.py:85",
+      "message": "Magic number: 1000000",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\openrouter.py:61",
+      "message": "Magic number: 3.0",
+      "recommendation": "Extract to a named constant for clarity"
+    },
+    {
+      "category": "magic_values",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\openrouter.py:65",
+      "message": "Magic number: 1000000",
+      "recommendation": "Extract to a named constant for clarity"
+    }
+  ],
+  "clean": false
+}

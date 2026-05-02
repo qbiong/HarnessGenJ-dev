@@ -1,0 +1,6 @@
+[      24ms] Invalid or unexpected token
+[   16780ms] [LOG] Line 14:             let noApiKey = false; @ :13
+[   16781ms] [LOG] Line 15:             let providerConfig = 'qwen'; @ :13
+[   16781ms] [LOG] Line 16:             let modelConfig = 'qwen3.6-plus'; @ :13
+[   16781ms] [LOG] Line 17:  @ :13
+[   16781ms] [LOG] Line 18:             function updateKeyInfo() { @ :13

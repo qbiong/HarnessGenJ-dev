@@ -1,0 +1,10 @@
+[      70ms] Invalid or unexpected token
+[      97ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8000/favicon.ico:0
+[    9650ms] ReferenceError: send is not defined
+    at HTMLButtonElement.onclick (http://127.0.0.1:8000/:130:73)
+[   10258ms] ReferenceError: send is not defined
+    at HTMLButtonElement.onclick (http://127.0.0.1:8000/:130:73)
+[   10452ms] ReferenceError: send is not defined
+    at HTMLButtonElement.onclick (http://127.0.0.1:8000/:130:73)
+[   10594ms] ReferenceError: send is not defined
+    at HTMLButtonElement.onclick (http://127.0.0.1:8000/:130:73)

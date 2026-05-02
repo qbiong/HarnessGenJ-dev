@@ -1,0 +1,26 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - heading "HGJ-dev Dashboard" [level=1] [ref=e3]
+    - generic [ref=e4]:
+      - link "Chat" [ref=e5] [cursor=pointer]:
+        - /url: /
+      - link "Projects" [ref=e6] [cursor=pointer]:
+        - /url: /projects
+      - link "Files" [ref=e7] [cursor=pointer]:
+        - /url: /files
+      - link "Settings" [ref=e8] [cursor=pointer]:
+        - /url: /settings
+  - generic [ref=e9]:
+    - generic [ref=e11]: Idle
+    - combobox [ref=e12]:
+      - option "Product Manager" [selected]
+      - option "Developer"
+      - option "Code Reviewer"
+      - option "Bug Hunter"
+      - option "Architect"
+      - option "Doc Writer"
+    - generic [ref=e13]: qwen / qwen3.6-plus
+  - generic [ref=e15]: "Connected to HGJ-dev — default: Product Manager. Use @developer, @reviewer, @architect etc. to call team members."
+  - generic [ref=e16]:
+    - textbox "Describe what you want to build..." [ref=e17]
+    - button "Send" [ref=e18] [cursor=pointer]

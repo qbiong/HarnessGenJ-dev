@@ -1,0 +1,28 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - heading "HGJ-dev Dashboard" [level=1] [ref=e3]
+    - generic [ref=e4]:
+      - link "Chat" [ref=e5] [cursor=pointer]:
+        - /url: /
+      - link "Projects" [ref=e6] [cursor=pointer]:
+        - /url: /projects
+      - link "Files" [ref=e7] [cursor=pointer]:
+        - /url: /files
+      - link "Settings" [ref=e8] [cursor=pointer]:
+        - /url: /settings
+  - generic [ref=e9]:
+    - generic [ref=e11]: Idle
+    - combobox [ref=e12]:
+      - option "Product Manager" [selected]
+      - option "Developer"
+      - option "Code Reviewer"
+      - option "Bug Hunter"
+      - option "Architect"
+      - option "Doc Writer"
+  - generic [ref=e14]:
+    - heading "HGJ-dev" [level=2] [ref=e15]
+    - paragraph [ref=e16]: AI-powered development assistant
+    - paragraph [ref=e17]: Type a request below to start developing
+  - generic [ref=e18]:
+    - textbox "Describe what you want to build..." [ref=e19]
+    - button "Send" [ref=e20] [cursor=pointer]

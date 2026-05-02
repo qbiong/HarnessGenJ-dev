@@ -1,0 +1,248 @@
+{
+  "audit_type": "architecture",
+  "total_issues": 34,
+  "critical": 0,
+  "warnings": 0,
+  "infos": 34,
+  "issues": [
+    {
+      "category": "error_handling",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\cli.py",
+      "message": "Catches bare Exception - consider using HGJDevError hierarchy",
+      "recommendation": "Import and use exceptions from utils.exceptions for better error classification"
+    },
+    {
+      "category": "error_handling",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\core\\agent.py",
+      "message": "Catches bare Exception - consider using HGJDevError hierarchy",
+      "recommendation": "Import and use exceptions from utils.exceptions for better error classification"
+    },
+    {
+      "category": "error_handling",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\executor\\shell_executor.py",
+      "message": "Catches bare Exception - consider using HGJDevError hierarchy",
+      "recommendation": "Import and use exceptions from utils.exceptions for better error classification"
+    },
+    {
+      "category": "error_handling",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\gateway.py",
+      "message": "Catches bare Exception - consider using HGJDevError hierarchy",
+      "recommendation": "Import and use exceptions from utils.exceptions for better error classification"
+    },
+    {
+      "category": "error_handling",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\streaming.py",
+      "message": "Catches bare Exception - consider using HGJDevError hierarchy",
+      "recommendation": "Import and use exceptions from utils.exceptions for better error classification"
+    },
+    {
+      "category": "error_handling",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\registry.py",
+      "message": "Catches bare Exception - consider using HGJDevError hierarchy",
+      "recommendation": "Import and use exceptions from utils.exceptions for better error classification"
+    },
+    {
+      "category": "error_handling",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tui\\app.py",
+      "message": "Catches bare Exception - consider using HGJDevError hierarchy",
+      "recommendation": "Import and use exceptions from utils.exceptions for better error classification"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\ast_analyzer.py:123",
+      "message": "Public function 'visit_FunctionDef' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\ast_analyzer.py:161",
+      "message": "Public function 'visit_ClassDef' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\ast_analyzer.py:181",
+      "message": "Public function 'visit_Import' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\ast_analyzer.py:186",
+      "message": "Public function 'visit_ImportFrom' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\ast_analyzer.py:192",
+      "message": "Public function 'visit_If' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\ast_analyzer.py:196",
+      "message": "Public function 'visit_For' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\ast_analyzer.py:200",
+      "message": "Public function 'visit_While' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\ast_analyzer.py:204",
+      "message": "Public function 'visit_ExceptHandler' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\scanner\\ast_analyzer.py:208",
+      "message": "Public function 'visit_BoolOp' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\code_ops.py:46",
+      "message": "Public function 'execute' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\file_ops.py:26",
+      "message": "Public function 'execute' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\file_ops.py:54",
+      "message": "Public function 'execute' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\file_ops.py:79",
+      "message": "Public function 'execute' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\file_ops.py:140",
+      "message": "Public function 'execute' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\git_ops.py:30",
+      "message": "Public class 'GitStatusTool' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\git_ops.py:39",
+      "message": "Public class 'GitDiffTool' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\git_ops.py:56",
+      "message": "Public class 'GitLogTool' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\git_ops.py:35",
+      "message": "Public function 'execute' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\git_ops.py:49",
+      "message": "Public function 'execute' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\git_ops.py:66",
+      "message": "Public function 'execute' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\registry.py:29",
+      "message": "Public function 'decorator' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\shell_ops.py:29",
+      "message": "Public function 'execute' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\tools\\test_ops.py:25",
+      "message": "Public function 'execute' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\anthropic.py:30",
+      "message": "Public function 'provider_name' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\local.py:55",
+      "message": "Public function 'provider_name' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\openai.py:34",
+      "message": "Public function 'provider_name' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    },
+    {
+      "category": "docs",
+      "severity": "info",
+      "location": "src\\harnessgenj_dev\\llm\\providers\\openrouter.py:42",
+      "message": "Public function 'provider_name' missing docstring",
+      "recommendation": "Add a docstring describing the purpose and interface"
+    }
+  ],
+  "clean": true
+}

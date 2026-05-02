@@ -1,0 +1,17 @@
+{
+  "info": {
+    "name": "test",
+    "description": "",
+    "tech_stack": "",
+    "status": "init",
+    "created_at": 1776356388.6704657,
+    "updated_at": 1776356388.670466
+  },
+  "stats": {
+    "features_total": 0,
+    "features_completed": 0,
+    "bugs_total": 0,
+    "bugs_fixed": 0,
+    "progress": 0
+  }
+}

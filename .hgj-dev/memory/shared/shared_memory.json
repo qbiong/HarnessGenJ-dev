@@ -1,0 +1,24 @@
+{
+  "_team_members": {
+    "key": "_team_members",
+    "content": "## Team Members\n- **@product_manager**: Product Manager — Requirements, prioritization, task coordination\n- **@developer**: Developer — Code implementation, bug fixes, feature development\n- **@code_reviewer**: Code Reviewer — Code quality, security, best practices review\n- **@bug_hunter**: Bug Hunter — Defect diagnosis, root cause analysis\n- **@architect**: Architect — System design, module boundaries, scalability\n- **@doc_writer**: Doc Writer — Documentation, tutorials, API docs",
+    "tags": [
+      "team",
+      "roles"
+    ],
+    "created_at": 1776351160.6372113,
+    "access_count": 0,
+    "role": ""
+  },
+  "_team_collaboration": {
+    "key": "_team_collaboration",
+    "content": "## Team Collaboration\nUse @mention syntax to assign tasks to team members.\nRole aliases: @dev -> @developer, @pm -> @product_manager, @reviewer -> @code_reviewer, @arch -> @architect, @docs -> @doc_writer, @hunter -> @bug_hunter\nParallel execution: multiple @mentions run concurrently.\nEach role has its own isolated memory (role memory) plus access to this shared memory.",
+    "tags": [
+      "team",
+      "collaboration"
+    ],
+    "created_at": 1776351160.637214,
+    "access_count": 0,
+    "role": ""
+  }
+}

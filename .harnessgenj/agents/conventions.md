@@ -1,0 +1,12 @@
+> priority: 70
+> auto_inject: True
+> roles: developer
+
+# 代码约定
+
+## 编码风格
+- 遵循 PEP 8
+- 类型注解
+
+## 文档
+- 函数必须有文档字符串
