@@ -606,6 +606,23 @@ function handleMessage(msg) {{
             }}
             scrollToBottom();
             break;
+        case 'agent_dispatch':
+            // Show agent dispatch as a separator message
+            var div = document.createElement('div');
+            div.className = 'msg system';
+            div.innerHTML = '<span style="color:var(--accent-cyan);">🔄 正在调用 ' + escapeHtml(msg.role_display || msg.role) + '...</span>';
+            chat.appendChild(div);
+            scrollToBottom();
+            break;
+        case 'agent_response':
+            // Show agent response as a separate message card with role badge
+            var div = document.createElement('div');
+            div.className = 'msg ai';
+            var roleColor = {{'product_manager':'var(--accent-cyan)','architect':'var(--accent-blue)','developer':'var(--success)','code_reviewer':'#f0883e','bug_hunter':'var(--error)','doc_writer':'var(--text-secondary)'}}[msg.role] || 'var(--accent-cyan)';
+            div.innerHTML = '<div class="role-badge" style="color:' + roleColor + ';font-weight:600;font-size:10px;margin-bottom:4px;">[' + escapeHtml(msg.role_display || msg.role) + ']</div>' + formatContent(msg.content || '');
+            chat.appendChild(div);
+            scrollToBottom();
+            break;
         case 'error':
             var div = document.createElement('div');
             div.className = 'msg system';
@@ -1176,16 +1193,13 @@ class AgentSession:
                 await self.send({"type": "text_chunk", "content": accumulated, "role": self.role})
 
             # Check for @mentions and dispatch to other agents
-            dispatch_result = ""
             if accumulated and "@" in accumulated:
-                dispatch_result = await self._dispatch_mentions(accumulated)
-                if dispatch_result:
-                    await self.send({"type": "text_chunk", "content": dispatch_result, "role": self.role})
+                await self._dispatch_mentions(accumulated)
 
             if self._interrupted:
                 await self.send({"type": "final_answer", "content": accumulated + "\n[已中断]", "iterations": agent.state.iteration_count, "role": self.role})
             else:
-                await self.send({"type": "final_answer", "content": accumulated + dispatch_result, "iterations": agent.state.iteration_count, "role": self.role})
+                await self.send({"type": "final_answer", "content": accumulated, "iterations": agent.state.iteration_count, "role": self.role})
             return accumulated
         except asyncio.CancelledError:
             if accumulated:
@@ -1199,27 +1213,39 @@ class AgentSession:
             await self._send_status("idle")
             self._interrupted = False
 
-    async def _dispatch_mentions(self, text: str) -> str:
-        """Parse @mentions from agent response and execute sub-agent tasks.
+    _ROLE_DISPLAY = {
+        "product_manager": "产品经理",
+        "architect": "架构师",
+        "developer": "开发者",
+        "code_reviewer": "代码审查员",
+        "bug_hunter": "Bug猎人",
+        "doc_writer": "文档编写者",
+    }
 
-        Returns combined results from all dispatched agents.
-        """
+    async def _dispatch_mentions(self, text: str) -> None:
+        """Parse @mentions and execute sub-agent tasks. Each agent response sent as separate message."""
         import re
         from harnessgenj_dev.core.agent import Agent
         from harnessgenj_dev.llm.gateway import LLMGateway
 
         mentions = re.findall(r'@(product_manager|architect|developer|code_reviewer|bug_hunter|doc_writer)', text)
         if not mentions:
-            return ""
+            return
 
         seen = set()
-        results = []
         for role in mentions:
             if role in seen or role == self.role:
                 continue
             seen.add(role)
 
-            await self.send({"type": "text_chunk", "content": f"\n[委派任务给 {role}...]\n", "role": self.role})
+            # Announce agent dispatch as a separate message
+            role_display = self._ROLE_DISPLAY.get(role, role)
+            await self.send({
+                "type": "agent_dispatch",
+                "role": role,
+                "role_display": role_display,
+                "status": "started",
+            })
 
             try:
                 sub_agent = Agent(
@@ -1237,12 +1263,21 @@ class AgentSession:
                     f"Do NOT respond as the {self.role}. Respond as the {role}."
                 )
                 sub_result = await sub_agent.run(task_prompt, role=role)
-                results.append(f"[{role}]: {sub_result}")
-                await self.send({"type": "text_chunk", "content": f"\n[{role} 完成]\n", "role": self.role})
-            except Exception as exc:
-                results.append(f"[{role} 错误]: {exc}")
 
-        return "\n\n---\n" + "\n\n".join(results) if results else ""
+                # Send agent's response as a separate message card
+                await self.send({
+                    "type": "agent_response",
+                    "role": role,
+                    "role_display": role_display,
+                    "content": sub_result,
+                })
+            except Exception as exc:
+                await self.send({
+                    "type": "agent_response",
+                    "role": role,
+                    "role_display": role_display,
+                    "content": f"错误：{exc}",
+                })
 
     async def run_develop_oneshot(self, content: str) -> dict[str, Any]:
         from harnessgenj_dev.core.agent import Agent
