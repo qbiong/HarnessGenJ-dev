@@ -367,23 +367,35 @@ After documentation is confirmed, begin implementing the first phase:
         return False
 
     def _get_harness_instructions(self) -> str:
-        """Get project-specific instructions from the USER's HARNESS.md."""
+        """Get project-specific instructions from HARNESS.md and AGENTS.md."""
         try:
             project_path = None
             if self.config:
                 project_path = getattr(self.config, "project_path", None) or getattr(self.config, "project_root", None)
 
+            instructions = []
             if project_path:
-                content = get_harness_for_project(project_path)
-                if content:
-                    max_len = 2000
-                    if len(content) > max_len:
-                        return "Project instructions (HARNESS.md):\n" + content[:max_len] + "\n...[truncated]"
-                    return "Project instructions (HARNESS.md):\n" + content
-            return "No HARNESS.md found in project. Create one to define project-specific rules."
+                project_root = Path(os.path.abspath(str(project_path)))
+                # Load HARNESS.md
+                harness = get_harness_for_project(project_path)
+                if harness:
+                    instructions.append("## HARNESS.md\n" + harness[:2000])
+                # Load AGENTS.md (GitHub standard for AI agent context)
+                agents_md = project_root / "AGENTS.md"
+                if not agents_md.exists():
+                    agents_md = project_root / ".github" / "AGENTS.md"
+                try:
+                    if agents_md.exists():
+                        agents_content = agents_md.read_text(encoding="utf-8")[:1500]
+                        instructions.append("## AGENTS.md (项目规范)\n" + agents_content)
+                except Exception:
+                    pass
+            if instructions:
+                return "\n\n".join(instructions)
+            return "No HARNESS.md or AGENTS.md found. Create one to define project rules and AI agent instructions."
         except Exception as e:
-            logger.debug(f"Failed to load HARNESS.md: {e}")
-            return "No HARNESS.md available."
+            logger.debug(f"Failed to load project instructions: {e}")
+            return "No project instructions available."
 
     def _get_memory_block(self, role: str) -> str:
         """Get memory context for the role."""

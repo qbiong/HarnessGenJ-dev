@@ -29,7 +29,7 @@ class TestSession:
         s = Session(id="abc123", project="test")
         assert s.id == "abc123"
         assert s.project == "test"
-        assert s.role == "product_manager"
+        assert s.role == "project_manager"
         assert s.messages == []
         assert s.message_count == 0
 

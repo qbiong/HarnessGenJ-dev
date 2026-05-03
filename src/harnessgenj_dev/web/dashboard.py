@@ -1219,16 +1219,36 @@ class AgentSession:
     async def _send_status(self, state: str) -> None:
         await self.send({"type": "status", "state": state})
 
-    async def _run_sub_agent(self, role: str, context: str, parent_role: str = "product_manager") -> str:
-        """Run a sub-agent with given role and context. Returns response text."""
+    async def _run_sub_agent(self, role: str, context: str, parent_role: str = "project_manager") -> str:
+        """Run a sub-agent with structured output (GitHub handoff contract pattern).
+
+        Agent output format:
+        ## 目标: [what this agent aims to achieve]
+        ## 约束: [constraints/assumptions]
+        ## 发现: [findings/analysis]
+        ## 完成标准: [self-check: is the output complete?]
+        ## 投票: PASS 或 FAIL:理由
+        """
         from harnessgenj_dev.core.agent import Agent
         from harnessgenj_dev.llm.gateway import LLMGateway
         role_display = self._ROLE_DISPLAY.get(role, role)
         await self.send({"type": "agent_dispatch", "role": role, "role_display": role_display, "status": "started"})
         try:
             sub = Agent(llm_gateway=LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None), config=_ConfigShim())
-            result = await sub.run("PM requested your input. Context:\n" + context[:2000] + "\n\nFocus on your role: " + role + ". Report findings back to PM.", role=role)
-            await self.send({"type": "agent_response", "role": role, "role_display": role_display, "content": result or "(no output)"})
+            prompt = (
+                "项目经理请你以 " + role_display + " 身份参与团队分析。请按以下格式输出（用中文）：\n\n"
+                + "## 目标\n[你要达成的具体目标]\n\n"
+                + "## 约束\n[你的假设和边界条件]\n\n"
+                + "## 发现\n[你的分析和发现]\n\n"
+                + "## 完成标准\n[你确认你的输出是否完整？是否满足项目要求？]\n\n"
+                + "## 投票\n[**PASS** 或 **FAIL:理由**]\n"
+                + "- 如果你对前序角色的输出不满意，投FAIL并说明谁需要改进什么\n"
+                + "- 如果你满意所有前序工作，投PASS\n\n"
+                + "=== 上下文 ===\n" + context[:3000] + "\n\n"
+                + "注意：你只能做你角色范围内的事。不要越权。不能调用其他Agent。"
+            )
+            result = await sub.run(prompt, role=role)
+            await self.send({"type": "agent_response", "role": role, "role_display": role_display, "content": result or "(无输出)"})
             return result or ""
         except Exception as exc:
             await self.send({"type": "agent_response", "role": role, "role_display": role_display, "content": "错误: " + str(exc)})
@@ -1317,14 +1337,31 @@ class AgentSession:
                         results[role] = agent_output
                         round_context += "\n\n## " + role_display + " 输出\n" + agent_output[:2000]
 
-                    # 轮次结束：PM 检查是否需要回退
+                    # 轮次结束：PM 基于结构化输出评估（手递手合同模式）
                     if self._interrupted: break
-                    review_prompt = "你是项目经理。第" + str(pn) + "轮已完成。\n"
+                    review_prompt = "你是项目经理。第" + str(pn) + "轮团队讨论已完成。\n\n"
+                    review_prompt += "## 各角色投票汇总\n"
+                    pass_cnt = 0
+                    fail_items = []
                     for r in TEAM:
                         if r in results:
-                            review_prompt += "### " + self._ROLE_DISPLAY.get(r, r) + "\n" + results.get(r, "")[:800] + "\n\n"
-                    review_prompt += "请判断：\n1. 是否有任何角色对前序角色的工作不满意？（如B认为A需要修改）\n2. 是否需要回退到某个角色重新执行？\n\n"
-                    review_prompt += "回复格式：\n- 如果全部通过：回复 PASS\n- 如果需要回退：回复 REDO:角色名 (如 REDO:architect)\n- 只用一行回复，不要解释"
+                            out = results.get(r, "")
+                            if "## 投票" in out:
+                                vote_section = out[out.find("## 投票"):][:200]
+                            else:
+                                vote_section = "(未明确投票)"
+                            if "PASS" in vote_section.upper() and "FAIL" not in vote_section.upper():
+                                pass_cnt += 1
+                            else:
+                                fail_items.append(r)
+                            review_prompt += "- " + self._ROLE_DISPLAY.get(r, r) + ": " + vote_section.strip()[:120] + "\n"
+                    review_prompt += "\n## PM 决策指令\n"
+                    review_prompt += "通过数: " + str(pass_cnt) + "/" + str(len(TEAM))
+                    if fail_items:
+                        review_prompt += "\n需要重做: " + ", ".join(fail_items)
+                        review_prompt += "\n\n请用一行回复: REDO:" + fail_items[0]
+                    else:
+                        review_prompt += "\n\n请用一行回复: PASS"
 
                     review_resp = await gw.chat(messages=[{"role": "user", "content": review_prompt}], model=_get_model())
                     decision = (review_resp.content or "PASS").strip().upper()
