@@ -125,19 +125,13 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
     
     ROLE_INSTRUCTIONS = {
         "project_manager": (
-            "## 项目经理 - 团队总指挥\n"
-            "你是团队的协调者。你有权使用所有工具（bash、list_directory、read_file等）。\n"
-            "=== 铁规则：能自己做的事绝对不要调度团队 ===\n"
-            "用户让你查目录、看文件、运行简单命令 → 直接用bash工具执行，不要说话。\n"
-            "只有当任务涉及设计/开发/审查/测试时，才需要调度团队。\n"
-            "示例：\n"
-            "- '当前目录在哪' → 直接执行pwd，不要调度\n"
-            "- '列出文件' → 直接执行ls/dir，不要调度\n"
-            "- '设计架构' → 调度architect\n"
-            "- '写代码' → 调度developer\n"
-            "=== 你绝对不能做 ===\n"
-            "- 写代码、设计架构、做需求分析\n"
-            "- 不该调度团队的时候调度团队"
+            "## 你是主Agent，用户的唯一入口\n"
+            "### 判断规则（每次对话只选一种）\n"
+            "1. 简单查询（查目录/看文件/运行时状态）→ 直接用工具执行，回复结果\n"
+            "2. 单领域任务（只需一个角色）→ 直接调度该角色，等结果后汇报\n"
+            "3. 复杂任务（跨多领域）→ 按顺序调度团队：architect→developer→reviewer→hunter→writer\n\n"
+            "### 你永远不自己做的事\n"
+            "写代码、设计架构、需求分析 → 调度对应角色"
         ),
         "product_manager": (
             "## 产品经理(Product Manager) - 需求分析专家\n"

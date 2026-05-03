@@ -351,16 +351,7 @@ body {{
         <span style="font-size:11px;color:var(--text-muted)">|</span>
         <span style="font-size:11px;color:var(--accent-cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px;" id="project-info"></span>
         <span style="font-size:11px;color:var(--text-muted)">|</span>
-        <select class="role-select" id="role-select">
-            <option value="project_manager" selected>Project Manager</option>
-                    <option value="product_manager">Product Manager</option>
-            <option value="developer">Developer</option>
-            <option value="code_reviewer">Code Reviewer</option>
-            <option value="bug_hunter">Bug Hunter</option>
-            <option value="architect">Architect</option>
-            <option value="doc_writer">Doc Writer</option>
-        </select>
-        <span style="font-size:11px;color:var(--text-muted)">|</span>
+        <select class="role-select" id="role-select" style="display:none;"><option value="project_manager" selected>Project Manager</option></select>
         <span style="font-size:11px;color:var(--text-muted)" id="key-info"></span>
         <span style="flex:1"></span>
         <div class="session-dropdown">
@@ -654,7 +645,7 @@ function send() {{
 
     // Check for user @mention to route to specific role
     var mentionMatch = text.match(/@(product_manager|architect|developer|code_reviewer|bug_hunter|doc_writer)/);
-    var targetRole = mentionMatch ? mentionMatch[1] : roleSelect.value;
+    var targetRole = mentionMatch ? mentionMatch[1] : 'project_manager';
     var content = mentionMatch ? text.replace(mentionMatch[0], '').trim() : text;
 
     if (ws && ws.readyState === WebSocket.OPEN) {{
