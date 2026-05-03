@@ -637,6 +637,7 @@ function handleMessage(msg) {{
                 }}
             }}
             loadSessions();
+            setTimeout(function() {{ scrollToBottom(); }}, 100);
             break;
         case 'session_list':
             renderSessions(msg.sessions);
@@ -727,8 +728,29 @@ function renderUserMsg(content) {{
 }}
 
 function scrollToBottom() {{
-    var container = document.getElementById('tab-chat');
+    var container = document.getElementById('chat') || document.getElementById('tab-chat');
     if (container) container.scrollTop = container.scrollHeight;
+}}
+
+// Floating scroll-to-bottom button
+var scrollBtn = null;
+document.addEventListener('DOMContentLoaded', function() {{
+    scrollBtn = document.createElement('div');
+    scrollBtn.style.cssText = 'position:fixed;bottom:100px;right:30px;width:36px;height:36px;border-radius:50%;background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:30;font-size:18px;opacity:0;transition:opacity 0.2s;';
+    scrollBtn.innerHTML = '↓';
+    scrollBtn.title = '回到最新消息';
+    scrollBtn.onclick = function() {{ scrollToBottom(); }};
+    document.body.appendChild(scrollBtn);
+}});
+
+// ---- Scroll detection for floating button ----
+var chatContainer = document.getElementById('chat');
+if (chatContainer) {{
+    chatContainer.addEventListener('scroll', function() {{
+        if (!scrollBtn) return;
+        var atBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
+        scrollBtn.style.opacity = atBottom ? '0' : '1';
+    }});
 }}
 
 // ---- Input auto-resize ----
