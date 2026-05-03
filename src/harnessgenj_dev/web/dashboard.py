@@ -1203,9 +1203,9 @@ class AgentSession:
             if accumulated and "@" in accumulated and self.role == "product_manager":
                 dispatch_result = await self._dispatch_mentions(accumulated, content)
 
-            # If dispatch happened, PM collects results and presents summary
+            # If dispatch happened, PM collects results as a SEPARATE message (don't replace last msg)
             if dispatch_result and not self._interrupted:
-                await self.send({"type": "final_answer", "content": dispatch_result, "iterations": agent.state.iteration_count, "role": "product_manager"})
+                await self.send({"type": "agent_response", "role": "product_manager", "role_display": "产品经理", "content": dispatch_result})
 
             return accumulated
         except asyncio.CancelledError:
@@ -1300,7 +1300,8 @@ class AgentSession:
             for r in agent_results:
                 fb += "- **" + self._ROLE_DISPLAY.get(r, r) + "**: 已完成\n"
             return fb
-async def run_develop_oneshot(self, content: str) -> dict[str, Any]:
+
+    async def run_develop_oneshot(self, content: str) -> dict[str, Any]:
         from harnessgenj_dev.core.agent import Agent
         from harnessgenj_dev.llm.gateway import LLMGateway
         from harnessgenj_dev.tools.registry import auto_register
