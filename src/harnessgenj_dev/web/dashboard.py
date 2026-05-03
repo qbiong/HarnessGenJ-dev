@@ -1286,7 +1286,7 @@ class AgentSession:
             # Immediate feedback so user knows agent is working
             await self.send({"type": "text_chunk", "content": "⏳ 正在分析...\n", "role": self.role})
             # Reduce max iterations for initial response (orchestrator dispatches for deep analysis)
-            agent.state.max_iterations = min(agent.state.max_iterations, 5)
+            agent.state.max_iterations = min(agent.state.max_iterations, 3)  # fast response for simple queries
             result = await agent.run(content, role=self.role)
             accumulated = result or ""
             if accumulated:
