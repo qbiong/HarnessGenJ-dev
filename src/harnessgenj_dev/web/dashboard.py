@@ -1229,29 +1229,38 @@ class AgentSession:
             if not self._interrupted:
                 await self.send({"type": "final_answer", "content": accumulated, "iterations": agent.state.iteration_count, "role": self.role})
 
-            # Internal team review — hidden from user, only final result shown
+            # PM orchestrates team sequentially: PM intervenes after each agent
             if self.role == "product_manager" and accumulated and not self._interrupted:
                 from ..llm.gateway import LLMGateway
+                gw = LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None)
                 TEAM = ["architect", "developer", "code_reviewer", "bug_hunter", "doc_writer"]
-                wctx = "## User Request\n" + content + "\n\n## PM Analysis\n" + accumulated[:2000]
-
-                # Run all agents — each shown as separate message
                 results = {}
+                history = "## User Request\n" + content + "\n\n## PM Analysis\n" + accumulated[:2000]
+
                 for role in TEAM:
                     if self._interrupted: break
-                    results[role] = await self._run_sub_agent(role, wctx, silent=False)
 
-                # Persist to session
-                for r in TEAM:
-                    session.messages.append({"role": "assistant", "content": "[" + self._ROLE_DISPLAY.get(r, r) + "]: " + results.get(r, "")[:500]})
+                    # PM decides how to introduce this agent
+                    intro = "PM directs the " + self._ROLE_DISPLAY.get(role, role) + " to analyze. "
+                    intro += "Previous work:\n" + history[-1000:]
+                    intro_prompt = "You are PM. Based on what has been done so far, write ONE SENTENCE to introduce the next step: asking the " + self._ROLE_DISPLAY.get(role, role) + " to contribute their expertise. Be specific about what you need from them."
+                    intro_resp = await gw.chat(messages=[{"role": "user", "content": intro_prompt}], model=_get_model())
+                    intro_text = intro_resp.content or ("Now consulting " + self._ROLE_DISPLAY.get(role, role) + "...")
+                    await self.send({"type": "agent_response", "role": "product_manager", "role_display": "产品经理", "content": intro_text})
 
-                # PM compiles final synthesis from all agent outputs
-                gw = LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None)
+                    # Run the agent
+                    ctx = history + "\n\n## PM Instructions for " + self._ROLE_DISPLAY.get(role, role) + "\n" + intro_text
+                    agent_output = await self._run_sub_agent(role, ctx, silent=False)
+                    results[role] = agent_output
+                    history += "\n\n## " + self._ROLE_DISPLAY.get(role, role) + " Output\n" + agent_output[:2000]
+
+                # PM final summary
                 raw = ""
                 for r in TEAM:
-                    raw += "## " + self._ROLE_DISPLAY.get(r, r) + "\n" + results.get(r, "")[:1000] + "\n\n"
-                pm_prompt = "You are PM. Your team completed analysis. User request:\n" + content[:1000] + "\n\n## Team Input\n" + raw + "\nSynthesize team findings into a final response for the user. Include key decisions, action items, and next steps. Be concise."
-                sr = await gw.chat(messages=[{"role": "user", "content": pm_prompt}], model=_get_model())
+                    raw += "### " + self._ROLE_DISPLAY.get(r, r) + "\n" + results.get(r, "")[:1000] + "\n\n"
+                    session.messages.append({"role": "assistant", "content": "[" + self._ROLE_DISPLAY.get(r, r) + "]: " + results.get(r, "")[:500]})
+                final_prompt = "You are PM. Your team completed analysis. User request:\n" + content[:1000] + "\n\n## Team Results\n" + raw + "\nSynthesize into a final response. Include key findings, decisions, action items, next steps. Be professional and concise."
+                sr = await gw.chat(messages=[{"role": "user", "content": final_prompt}], model=_get_model())
                 final_summary = sr.content or "Team analysis complete."
                 session.messages.append({"role": "assistant", "content": "[PM Final]: " + final_summary[:1000]})
                 await self.send({"type": "agent_response", "role": "product_manager", "role_display": "产品经理", "content": final_summary})
