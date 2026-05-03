@@ -1241,8 +1241,10 @@ class AgentSession:
         await self._send_status("running")
         accumulated = ""
         try:
-            # Show PM's acknowledgment to user
-            await self.send({"type": "text_chunk", "content": "", "role": self.role})
+            # Immediate feedback so user knows agent is working
+            await self.send({"type": "text_chunk", "content": "⏳ 正在分析...\n", "role": self.role})
+            # Reduce max iterations for initial response (orchestrator dispatches for deep analysis)
+            agent.state.max_iterations = min(agent.state.max_iterations, 5)
             result = await agent.run(content, role=self.role)
             accumulated = result or ""
             if accumulated:
