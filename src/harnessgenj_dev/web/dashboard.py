@@ -1599,10 +1599,17 @@ async def websocket_endpoint(websocket: WebSocket):
                             await session.run_develop(content)
                         except asyncio.CancelledError:
                             pass
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.exception("run_develop failed: %s", exc)
+                            try:
+                                await session.send({"type": "error", "message": "处理请求时出错: " + str(exc)[:200]})
+                            except Exception:
+                                pass
                         finally:
-                            session.save_session()  # final save at end
+                            try:
+                                session.save_session()
+                            except Exception:
+                                pass
                     task = asyncio.create_task(_run_and_save())
                     session._develop_task = task
             elif msg_type == "interrupt":
