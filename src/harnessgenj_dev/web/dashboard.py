@@ -1295,27 +1295,12 @@ class AgentSession:
             if not self._interrupted:
                 await self.send({"type": "final_answer", "content": accumulated, "iterations": agent.state.iteration_count, "role": self.role})
 
-            # 智能调度：PM判断是否需要团队协作，简单查询直接回复
-            import re
-            needs_team = False
-            import re
+            # 智能调度：只检查用户消息是否包含项目关键词
             needs_team = False
             if self.role == "project_manager" and accumulated and not self._interrupted:
-                team_keywords = ["设计", "架构", "开发", "实现", "审查", "review", "测试",
-                                 "重构", "优化", "文档", "需要团队", "组织大家", "讨论", "方案"]
-                combined = (content + accumulated).lower()
-                needs_team = any(kw.lower() in combined for kw in team_keywords)
-
-            if self.role == "project_manager" and accumulated and not self._interrupted and needs_team:
-                # 关键词判断：用户请求或PM回复中包含项目开发相关工作
-                team_keywords = ["设计", "架构", "开发", "实现", "审查", "review", "测试", "debug",
-                                 "重构", "优化", "文档", "需要团队", "组织大家", "讨论", "方案",
-                                 "implement", "architect", "design", "analyze", "讨论"]
-                combined = (content + accumulated).lower()
-                needs_team = any(kw.lower() in combined for kw in team_keywords)
-                # 短查询（<20字）且无关键词 → 不调度
-                if len(content) < 20 and not needs_team:
-                    needs_team = False
+                team_kw = ["开发", "设计", "架构", "实现", "审查", "重构", "优化",
+                           "文档", "需要团队", "组织大家", "讨论方案", "规划", "制定"]
+                needs_team = any(kw in content for kw in team_kw)
 
             if self.role == "project_manager" and accumulated and not self._interrupted and needs_team:
                 from ..llm.gateway import LLMGateway
