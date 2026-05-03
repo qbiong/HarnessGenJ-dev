@@ -17,7 +17,8 @@ from .base import Memory, MemoryEntry
 
 # Standard team composition
 TEAM_MEMBERS = {
-    "product_manager": "Product Manager — Requirements, prioritization, task coordination",
+    "project_manager": "Project Manager — Team coordination, task dispatching, workflow orchestration",
+    "product_manager": "Product Manager — Requirements analysis, user stories, feature prioritization",
     "developer": "Developer — Code implementation, bug fixes, feature development",
     "code_reviewer": "Code Reviewer — Code quality, security, best practices review",
     "bug_hunter": "Bug Hunter — Defect diagnosis, root cause analysis",

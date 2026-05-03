@@ -408,7 +408,7 @@ After documentation is confirmed, begin implementing the first phase:
             return (
                 f"You are part of a multi-role team:\n{members}\n\n"
                 "Use @mention to refer to team members. "
-                "The Product Manager (@product_manager) is the default coordinator."
+                "The Project Manager (@project_manager) is the default coordinator."
             )
         except Exception:
             return "You work as part of a multi-role team."
