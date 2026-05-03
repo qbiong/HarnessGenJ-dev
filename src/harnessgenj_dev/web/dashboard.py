@@ -230,6 +230,7 @@ body {{
 .msg-group.user {{ flex-direction: row-reverse; }}
 .msg-group.system {{ justify-content: center; }}
 .msg-avatar {{ width: 32px; height: 32px; min-width: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }}
+.msg-avatar.pjm {{ background: linear-gradient(135deg, #f59e0b22, #f59e0b44); color: #fbbf24; border: 1px solid #f59e0b33; }}
 .msg-avatar.pm {{ background: linear-gradient(135deg, #00d4ff22, #00d4ff44); color: #00d4ff; border: 1px solid #00d4ff33; }}
 .msg-avatar.arch {{ background: linear-gradient(135deg, #3b82f622, #3b82f644); color: #60a5fa; border: 1px solid #3b82f633; }}
 .msg-avatar.dev {{ background: linear-gradient(135deg, #10b98122, #10b98144); color: #34d399; border: 1px solid #10b98133; }}
@@ -239,6 +240,7 @@ body {{
 .msg-avatar.user {{ background: linear-gradient(135deg, #a855f722, #a855f744); color: #c084fc; border: 1px solid #a855f733; }}
 .msg-body {{ max-width: 75%; }}
 .msg-sender {{ font-size: 10px; font-weight: 600; margin-bottom: 3px; padding-left: 2px; letter-spacing: 0.2px; }}
+.msg-sender.pjm {{ color: #fbbf24; }}
 .msg-sender.pm {{ color: #00d4ff; }}
 .msg-sender.arch {{ color: #60a5fa; }}
 .msg-sender.dev {{ color: #34d399; }}
@@ -332,7 +334,8 @@ body {{
         <span style="font-size:11px;color:var(--accent-cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px;" id="project-info"></span>
         <span style="font-size:11px;color:var(--text-muted)">|</span>
         <select class="role-select" id="role-select">
-            <option value="product_manager" selected>Product Manager</option>
+            <option value="project_manager" selected>Project Manager</option>
+                    <option value="product_manager">Product Manager</option>
             <option value="developer">Developer</option>
             <option value="code_reviewer">Code Reviewer</option>
             <option value="bug_hunter">Bug Hunter</option>
@@ -684,7 +687,7 @@ function escapeHtml(text) {{
 }}
 
 function renderMsg(role, className, content) {{
-    var roles = {{'product_manager':{{'av':'PM','nm':'产品经理','cl':'pm'}},'architect':{{'av':'AR','nm':'架构师','cl':'arch'}},'developer':{{'av':'DV','nm':'开发者','cl':'dev'}},'code_reviewer':{{'av':'RV','nm':'审查员','cl':'rev'}},'bug_hunter':{{'av':'BH','nm':'Bug猎人','cl':'hunt'}},'doc_writer':{{'av':'DW','nm':'文档编写者','cl':'doc'}}}};
+    var roles = {{'project_manager':{{'av':'PJM','nm':'项目经理','cl':'pjm'}},'product_manager':{{'av':'PM','nm':'产品经理','cl':'pm'}},'architect':{{'av':'AR','nm':'架构师','cl':'arch'}},'developer':{{'av':'DV','nm':'开发者','cl':'dev'}},'code_reviewer':{{'av':'RV','nm':'审查员','cl':'rev'}},'bug_hunter':{{'av':'BH','nm':'Bug猎人','cl':'hunt'}},'doc_writer':{{'av':'DW','nm':'文档编写者','cl':'doc'}}}};
     var r = roles[role] || {{'av':'AI','nm':role,'cl':'pm'}};
     var html = '<div class="msg-group ' + className + '">';
     html += '<div class="msg-avatar ' + r.cl + '">' + r.av + '</div>';
@@ -1231,7 +1234,7 @@ class AgentSession:
                 await self.send({"type": "final_answer", "content": accumulated, "iterations": agent.state.iteration_count, "role": self.role})
 
             # PM orchestrates team sequentially: PM intervenes after each agent
-            if self.role == "product_manager" and accumulated and not self._interrupted:
+            if self.role == "project_manager" and accumulated and not self._interrupted:
                 from ..llm.gateway import LLMGateway
                 gw = LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None)
                 TEAM = ["architect", "developer", "code_reviewer", "bug_hunter", "doc_writer"]
@@ -1242,13 +1245,13 @@ class AgentSession:
                     if self._interrupted: break
 
                     # PM 作为总指挥，介入解释为什么调度此Agent
-                    intro_prompt = "你是产品经理。请用中文写一句话，告诉用户你现在要调度" + self._ROLE_DISPLAY.get(role, role) + "来参与分析。说明为什么需要该角色的意见。"
+                    intro_prompt = "你是项目经理。请用中文写一句话，告诉用户你现在要调度" + self._ROLE_DISPLAY.get(role, role) + "来参与分析。说明为什么需要该角色的意见。"
                     intro_resp = await gw.chat(messages=[{"role": "user", "content": intro_prompt}], model=_get_model())
                     intro_text = intro_resp.content or ("正在协调" + self._ROLE_DISPLAY.get(role, role) + "...")
                     await self.send({"type": "agent_response", "role": "product_manager", "role_display": "产品经理", "content": intro_text})
 
                     # 运行Agent
-                    ctx = history + "\n\n## 产品经理给" + self._ROLE_DISPLAY.get(role, role) + "的指示\n" + intro_text
+                    ctx = history + "\n\n## 项目经理给" + self._ROLE_DISPLAY.get(role, role) + "的指示\n" + intro_text
                     agent_output = await self._run_sub_agent(role, ctx, silent=False)
                     results[role] = agent_output
                     history += "\n\n## " + self._ROLE_DISPLAY.get(role, role) + " 输出\n" + agent_output[:2000]
@@ -1278,6 +1281,7 @@ class AgentSession:
             self._interrupted = False
 
     _ROLE_DISPLAY = {
+        "project_manager": "项目经理",
         "product_manager": "产品经理",
         "architect": "架构师",
         "developer": "开发者",
