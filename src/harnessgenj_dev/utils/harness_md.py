@@ -126,8 +126,8 @@ def resolve_imports(content: str, base_path: Path) -> str:
         full_path = (base_path / import_path).resolve()
 
         if not full_path.exists():
-            logger.warning(f"Import file not found: {full_path}")
-            content = content.replace(match.group(0), f"[Import not found: {import_path}]", 1)
+            logger.debug(f"Import file not found: {full_path}")
+            content = content.replace(match.group(0), "", 1)  # silently skip missing imports
             continue
 
         try:
