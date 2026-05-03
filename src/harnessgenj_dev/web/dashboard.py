@@ -1176,6 +1176,21 @@ class AgentSession:
     async def _send_status(self, state: str) -> None:
         await self.send({"type": "status", "state": state})
 
+    async def _run_sub_agent(self, role: str, context: str, parent_role: str = "product_manager") -> str:
+        """Run a sub-agent with given role and context. Returns response text."""
+        from harnessgenj_dev.core.agent import Agent
+        from harnessgenj_dev.llm.gateway import LLMGateway
+        role_display = self._ROLE_DISPLAY.get(role, role)
+        await self.send({"type": "agent_dispatch", "role": role, "role_display": role_display, "status": "started"})
+        try:
+            sub = Agent(llm_gateway=LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None), config=_ConfigShim())
+            result = await sub.run("PM requested your input. Context:\n" + context[:2000] + "\n\nFocus on your role: " + role + ". Report findings back to PM.", role=role)
+            await self.send({"type": "agent_response", "role": role, "role_display": role_display, "content": result or "(no output)"})
+            return result or ""
+        except Exception as exc:
+            await self.send({"type": "agent_response", "role": role, "role_display": role_display, "content": "错误: " + str(exc)})
+            return ""
+
     async def run_develop(self, content: str) -> str | None:
         agent = self._ensure_agent()
         session = self._get_session()
@@ -1187,25 +1202,41 @@ class AgentSession:
         await self._send_status("running")
         accumulated = ""
         try:
+            # Step 1: Run the main role (PM or selected role)
             await self.send({"type": "text_chunk", "content": "", "role": self.role})
             result = await agent.run(content, role=self.role)
             accumulated = result or ""
             if accumulated:
                 session.messages.append({"role": "assistant", "content": accumulated})
                 await self.send({"type": "text_chunk", "content": accumulated, "role": self.role})
-
-            # Send PM's acknowledgment to user first
             if not self._interrupted:
                 await self.send({"type": "final_answer", "content": accumulated, "iterations": agent.state.iteration_count, "role": self.role})
 
-            # Only PM dispatches agents; other roles report back to PM
-            dispatch_result = ""
-            if accumulated and "@" in accumulated and self.role == "product_manager":
-                dispatch_result = await self._dispatch_mentions(accumulated, content)
+            # Step 2: If PM role, run workflow: architect -> developer -> PM summary
+            # This runs regardless of @mentions — server-side orchestration
+            if self.role == "product_manager" and accumulated and not self._interrupted:
+                # Build context from PM's response
+                workflow_context = "## User Request\n" + content + "\n\n## PM Analysis\n" + accumulated[:2000]
 
-            # If dispatch happened, PM collects results as a SEPARATE message (don't replace last msg)
-            if dispatch_result and not self._interrupted:
-                await self.send({"type": "agent_response", "role": "product_manager", "role_display": "产品经理", "content": dispatch_result})
+                # Dispatch architect automatically
+                arch_result = await self._run_sub_agent("architect", workflow_context)
+                if self._interrupted: return accumulated
+
+                # Dispatch developer with architect's output as context
+                dev_context = workflow_context
+                if arch_result:
+                    dev_context += "\n\n## Architect Output\n" + arch_result[:2000]
+                dev_result = await self._run_sub_agent("developer", dev_context)
+                if self._interrupted: return accumulated
+
+                # Step 3: PM summary
+                from ..llm.gateway import LLMGateway
+                gw = LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None)
+                summary_prompt = "You are PM. Your team completed work:\n\n## User\n" + content[:1000] + "\n\n## Architect\n" + (arch_result or "(no input)")[:1500] + "\n\n## Developer\n" + (dev_result or "(no input)")[:1500] + "\n\nSummarize what was done, key findings, next steps."
+                await self.send({"type": "agent_dispatch", "role": "product_manager", "role_display": "产品经理", "status": "started"})
+                summary_resp = await gw.chat(messages=[{"role": "user", "content": summary_prompt}], model=_get_model())
+                summary_text = summary_resp.content or "Team work complete."
+                await self.send({"type": "agent_response", "role": "product_manager", "role_display": "产品经理", "content": summary_text})
 
             return accumulated
         except asyncio.CancelledError:
