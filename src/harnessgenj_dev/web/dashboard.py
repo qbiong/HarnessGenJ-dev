@@ -1281,24 +1281,25 @@ class AgentSession:
         if not agent_results:
             return ""
 
-        # PM synthesizes final summary
+                # PM ALWAYS synthesizes final summary (mandatory step)
+        await self.send({"type": "agent_dispatch", "role": "product_manager", "role_display": "产品经理", "status": "started"})
         try:
-            summary_agent = Agent(
-                llm_gateway=LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None),
-                config=_ConfigShim(),
-            )
-            results_text = "\n".join("## [" + self._ROLE_DISPLAY.get(r, r) + "]\n" + agent_results[r][:1500] for r in agent_results)
-            summary_prompt = (
-                "You are the PM. Here are the team results:\n\n"
-                "## User Request\n" + user_request[:1000] + "\n"
-                + results_text + "\n\n"
-                "Summarize what was accomplished, key findings, and next steps. Be professional and encouraging."
-            )
-            return await summary_agent.run(summary_prompt, role="product_manager")
+            from ..llm.gateway import LLMGateway
+            gw = LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None)
+            rlines = []
+            for r in agent_results:
+                rlines.append("### " + self._ROLE_DISPLAY.get(r, r) + " | " + agent_results[r][:1500])
+            body = "## Project Update\n## User Request\n" + user_request[:1000]
+            if rlines:
+                body += "\n\n" + chr(10).join(rlines)
+            body += "\n\nSummarize what was accomplished, key outcomes, next steps."
+            resp = await gw.chat(messages=[{"role": "user", "content": body}], model=_get_model())
+            return resp.content or "Team work complete."
         except Exception:
-            parts = ["[" + self._ROLE_DISPLAY.get(r, r) + "] done" for r in agent_results]
-            return "Team work complete.\n" + "\n".join(parts)
-
+            fb = "## 团队工作完成\n\n"
+            for r in agent_results:
+                fb += "- **" + self._ROLE_DISPLAY.get(r, r) + "**: 已完成\n"
+            return fb
 async def run_develop_oneshot(self, content: str) -> dict[str, Any]:
         from harnessgenj_dev.core.agent import Agent
         from harnessgenj_dev.llm.gateway import LLMGateway
