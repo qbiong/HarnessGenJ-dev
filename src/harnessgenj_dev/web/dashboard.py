@@ -14,6 +14,7 @@ from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnec
 from fastapi.responses import HTMLResponse
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 
 # ============================================================
@@ -1588,10 +1589,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 if content:
                     # Don't await task — let message loop stay responsive
                     async def _run_and_save():
+                        logger.info("_run_and_save START: content=%.50s", content)
                         try:
                             await session.run_develop(content)
+                            logger.info("_run_and_save DONE")
                         except asyncio.CancelledError:
-                            pass
+                            logger.info("_run_and_save CANCELLED")
                         except Exception as exc:
                             logger.exception("run_develop failed: %s", exc)
                             try:
@@ -1627,8 +1630,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 await session.send({"type": "session_list", "sessions": sessions, "project": session.project})
     except WebSocketDisconnect:
         pass
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.exception("WS message loop error: %s", exc)
     finally:
         manager.disconnect(websocket)
 
