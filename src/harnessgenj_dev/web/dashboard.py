@@ -248,6 +248,24 @@ body {{
 .msg-sender.hunt {{ color: #f87171; }}
 .msg-sender.doc {{ color: #94a3b8; }}
 .msg-bubble {{ display: inline-block; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.6; background: linear-gradient(135deg, rgba(19,25,32,0.9), rgba(26,34,48,0.8)); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 1px 6px rgba(0,0,0,0.12); }}
+
+/* ============ Session Panel ============ */
+.role-select {{ background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; font-size: 11px; font-family: var(--font-mono); outline: none; }}
+.role-select:focus {{ border-color: var(--accent-cyan); }}
+.session-dropdown {{ position: relative; display: inline-block; }}
+.session-bar {{ display: flex; align-items: center; gap: 8px; padding: 8px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); font-size: 12px; position: sticky; top: 0; z-index: 42; flex-shrink: 0; }}
+.session-panel {{ display: none; position: fixed; top: 100px; right: 20px; background: rgba(19,25,32,0.97); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: var(--radius-md); min-width: 320px; max-width: calc(100vw - 40px); max-height: calc(100vh - 120px); overflow-y: auto; box-shadow: var(--shadow-card); z-index: 100; }}
+.session-panel.open {{ display: block; }}
+.session-panel-header {{ display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg-secondary); z-index: 1; }}
+.session-panel-header span {{ font-size: 12px; font-weight: 600; color: var(--text-primary); }}
+.session-panel-header button {{ background: var(--success); color: white; border: none; border-radius: var(--radius-sm); padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer; }}
+.session-item {{ padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background var(--transition); }}
+.session-item:hover {{ background: var(--bg-tertiary); }}
+.session-item.active {{ background: linear-gradient(90deg, rgba(16,185,129,0.15), transparent); border-left: 3px solid var(--success); }}
+.session-item .s-title {{ font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.session-item .s-meta {{ font-size: 10px; color: var(--text-muted); margin-top: 3px; }}
+.session-item .s-actions {{ display: inline-block; margin-left: 8px; }}
+.session-item .s-actions a {{ color: var(--error); font-size: 10px; cursor: pointer; text-decoration: none; }}
 .msg-bubble code {{ background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #e06c75; }}
 .msg-bubble pre {{ background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 12px; margin: 6px 0; border: 1px solid rgba(255,255,255,0.04); }}
 .msg-group:not(.user) .msg-bubble {{ border-color: rgba(0,212,255,0.08); }}
