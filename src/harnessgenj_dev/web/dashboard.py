@@ -1295,8 +1295,21 @@ class AgentSession:
             if not self._interrupted:
                 await self.send({"type": "final_answer", "content": accumulated, "iterations": agent.state.iteration_count, "role": self.role})
 
-            # 多轮审查工作流：每轮全员评估 → 不满意回退 → 全部通过才输出
+            # 智能调度：PM判断是否需要团队协作，简单查询直接回复
+            import re
+            needs_team = False
             if self.role == "project_manager" and accumulated and not self._interrupted:
+                # 关键词判断：用户请求或PM回复中包含项目开发相关工作
+                team_keywords = ["设计", "架构", "开发", "实现", "审查", "review", "测试", "debug",
+                                 "重构", "优化", "文档", "需要团队", "组织大家", "讨论", "方案",
+                                 "implement", "architect", "design", "analyze", "讨论"]
+                combined = (content + accumulated).lower()
+                needs_team = any(kw.lower() in combined for kw in team_keywords)
+                # 短查询（<20字）且无关键词 → 不调度
+                if len(content) < 20 and not needs_team:
+                    needs_team = False
+
+            if self.role == "project_manager" and accumulated and not self._interrupted and needs_team:
                 from ..llm.gateway import LLMGateway
                 import re
                 gw = LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None)
