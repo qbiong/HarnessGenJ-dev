@@ -1275,57 +1275,73 @@ class AgentSession:
             if not self._interrupted:
                 await self.send({"type": "final_answer", "content": accumulated, "iterations": agent.state.iteration_count, "role": self.role})
 
-            # PM作为总指挥：每调一个Agent后评估输出，决定下一步
+            # 多轮审查工作流：每轮全员评估 → 不满意回退 → 全部通过才输出
             if self.role == "project_manager" and accumulated and not self._interrupted:
                 from ..llm.gateway import LLMGateway
+                import re
                 gw = LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None)
                 TEAM = ["architect", "developer", "code_reviewer", "bug_hunter", "doc_writer"]
                 results = {}
-                history = "## 用户请求\n" + content + "\n\n## 项目经理初始分析\n" + accumulated[:2000]
-                agent_idx = 0
+                base_context = "## 用户请求\n" + content + "\n\n## 项目经理分析\n" + accumulated[:2000]
+                max_passes = 3
 
-                while agent_idx < len(TEAM) and not self._interrupted:
-                    role = TEAM[agent_idx]
-                    role_display = self._ROLE_DISPLAY.get(role, role)
-                    agent_idx += 1
+                for pn in range(1, max_passes + 1):
+                    if self._interrupted: break
+                    needs_redo = set()
+                    round_context = base_context
 
-                    # PM intro: explain why this agent
-                    intro_prompt = "你是项目经理。基于当前所有讨论：" + history[-1500:] + "\n请用中文写一句话告诉用户，你现在要调度" + role_display + "，说明为什么需要TA。如果前面成员有跨角色的建议或@mention，请一并回应。"
-                    intro_resp = await gw.chat(messages=[{"role": "user", "content": intro_prompt}], model=_get_model())
-                    intro_text = intro_resp.content or ("正在协调" + role_display + "...")
-                    await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": intro_text})
+                    await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": "## 第 " + str(pn) + " 轮讨论开始"})
 
-                    # Run agent
-                    ctx = history + "\n\n## 项目经理给" + role_display + "的指示\n" + intro_text
-                    agent_output = await self._run_sub_agent(role, ctx, silent=False)
-                    results[role] = agent_output
-                    history += "\n\n## " + role_display + " 输出\n" + agent_output[:2000]
+                    # 按顺序调度 A→B→C→D
+                    for role in TEAM:
+                        if self._interrupted: break
+                        # 跳过不需要重做的Agent（除了第一轮）
+                        if pn > 1 and role not in needs_redo and role in results:
+                            continue
 
-                    # PM evaluates agent output before proceeding
-                    eval_prompt = (
-                        "你是项目经理。刚刚" + role_display + "给出了以下输出：\n"
-                        + agent_output[:1500] + "\n\n"
-                        + "## 当前进度\n已完成：" + str([r for r in results.keys()]) + "\n待调度：" + str(TEAM[agent_idx:]) + "\n\n"
-                        + "请评估：\n"
-                        + "1. " + role_display + "的输出是否涉及跨角色协调建议（如@其他角色）？\n"
-                        + "2. 是否需要重新调某个已完成角色补充？\n"
-                        + "3. 下一步应该如何调整？\n\n"
-                        + "用中文回复，控制在3句话以内。如果一切正常，说\"继续\"；如果需要调整，说明具体行动。"
-                    )
-                    eval_resp = await gw.chat(messages=[{"role": "user", "content": eval_prompt}], model=_get_model())
-                    eval_text = eval_resp.content or "继续"
+                        role_display = self._ROLE_DISPLAY.get(role, role)
 
-                    if "继续" not in eval_text or len(eval_text) > 30:
-                        # PM has feedback or coordination adjustments
-                        await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": "📋 " + eval_text})
-                        history += "\n\n## 项目经理评估\n" + eval_text
+                        # PM intro
+                        intro_prompt = "你是项目经理。第" + str(pn) + "轮。请用中文一句话说明为什么现在要调度" + role_display + "。如果有前面角色的建议，请一并说明。"
+                        intro_resp = await gw.chat(messages=[{"role": "user", "content": intro_prompt}], model=_get_model())
+                        await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": intro_resp.content or ("调度" + role_display + "...")})
 
-                        # If evaluation suggests re-dispatching, add back to queue
-                        import re
-                        redo_mentions = re.findall(r'@(architect|developer|code_reviewer|bug_hunter|doc_writer)', eval_text)
-                        if redo_mentions:
-                            agent_idx = max(0, agent_idx - 1)  # re-do current or previous
-                            await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": "🔄 根据协调需要，重新调度中..."})
+                        # 构建上下文：基础内容 + 所有之前的Agent输出
+                        ctx = round_context
+                        for r in TEAM:
+                            if r in results:
+                                ctx += "\n\n## " + self._ROLE_DISPLAY.get(r, r) + " (最近)\n" + results.get(r, "")[:1500]
+
+                        # Run agent
+                        agent_output = await self._run_sub_agent(role, ctx, silent=False)
+                        results[role] = agent_output
+                        round_context += "\n\n## " + role_display + " 输出\n" + agent_output[:2000]
+
+                    # 轮次结束：PM 检查是否需要回退
+                    if self._interrupted: break
+                    review_prompt = "你是项目经理。第" + str(pn) + "轮已完成。\n"
+                    for r in TEAM:
+                        if r in results:
+                            review_prompt += "### " + self._ROLE_DISPLAY.get(r, r) + "\n" + results.get(r, "")[:800] + "\n\n"
+                    review_prompt += "请判断：\n1. 是否有任何角色对前序角色的工作不满意？（如B认为A需要修改）\n2. 是否需要回退到某个角色重新执行？\n\n"
+                    review_prompt += "回复格式：\n- 如果全部通过：回复 PASS\n- 如果需要回退：回复 REDO:角色名 (如 REDO:architect)\n- 只用一行回复，不要解释"
+
+                    review_resp = await gw.chat(messages=[{"role": "user", "content": review_prompt}], model=_get_model())
+                    decision = (review_resp.content or "PASS").strip().upper()
+
+                    if "REDO:" in decision:
+                        # Extract role to redo
+                        redos = re.findall(r'REDO:(\w+)', decision)
+                        for rd in redos:
+                            if rd in TEAM:
+                                needs_redo.add(rd)
+                        if needs_redo:
+                            redo_names = ", ".join(self._ROLE_DISPLAY.get(r, r) for r in needs_redo)
+                            await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": "## 需要回退优化\n" + redo_names + " 需要重新执行。第" + str(pn + 1) + "轮将聚焦这些角色。"})
+                            base_context = round_context  # pass full context to next round
+                            continue
+                    # PASS or no clear redo → complete
+                    break
 
                 # PM final summary (mandatory)
                 raw = ""
@@ -1333,7 +1349,7 @@ class AgentSession:
                     if r in results:
                         raw += "### " + self._ROLE_DISPLAY.get(r, r) + "\n" + results.get(r, "")[:1000] + "\n\n"
                         session.messages.append({"role": "assistant", "content": "[" + self._ROLE_DISPLAY.get(r, r) + "]: " + results.get(r, "")[:500]})
-                final_prompt = "你是项目经理。团队已完成分析。用户请求：\n" + content[:1000] + "\n\n## 团队结论\n" + raw + "\n请给用户最终回复：关键发现、决策、下一步。用中文，简洁专业。"
+                final_prompt = "你是项目经理。团队" + str(pn) + "轮讨论已完成。\n用户请求：\n" + content[:1000] + "\n\n## 团队结论\n" + raw + "\n请给用户最终回复：总结讨论过程、关键决策、下一步行动。用中文，简洁专业。"
                 sr = await gw.chat(messages=[{"role": "user", "content": final_prompt}], model=_get_model())
                 final_summary = sr.content or "团队分析完成。"
                 session.messages.append({"role": "assistant", "content": "[PJM Final]: " + final_summary[:1000]})
