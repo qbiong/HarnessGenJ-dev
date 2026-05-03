@@ -1582,6 +1582,7 @@ async def websocket_endpoint(websocket: WebSocket):
             if msg_type == "develop":
                 content = data.get("content", "")
                 role = data.get("role", "developer")
+                logger.info("WS develop received: role=%s content=%.50s", role, content)
                 if role:
                     session.role = role
                 if content:
