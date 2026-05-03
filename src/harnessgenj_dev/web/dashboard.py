@@ -574,7 +574,7 @@ function handleMessage(msg) {{
             if (!lastMsg) {{
                 var div = document.createElement('div');
                 div.className = 'msg-group ai';
-                div.innerHTML = renderMsg(msg.role || 'product_manager', 'ai', '');
+                div.innerHTML = renderMsg(msg.role || 'project_manager', 'ai', '');
                 chat.appendChild(div);
                 lastMsg = div;
             }}
@@ -605,7 +605,7 @@ function handleMessage(msg) {{
                 if (lastAi) {{
                     lastAi.querySelector('.msg-bubble').innerHTML = formatContent(msg.content);
                 }} else {{
-                    addAiMsg(msg.content, msg.role || 'product_manager');
+                    addAiMsg(msg.content, msg.role || 'project_manager');
                 }}
             }}
             scrollToBottom();
@@ -633,7 +633,7 @@ function handleMessage(msg) {{
                 chat.innerHTML = '';
                 for (var m of msg.messages) {{
                     if (m.role === 'user') addMsg('user', m.content);
-                    else if (m.role === 'assistant') addMsg('ai', m.content, 'product_manager');
+                    else if (m.role === 'assistant') addMsg('ai', m.content, 'project_manager');
                 }}
             }}
             loadSessions();
@@ -678,7 +678,7 @@ function setMode(m) {{
 function addMsg(type, content, role) {{
     var div = document.createElement('div');
     if (type === 'ai') {{
-        div.innerHTML = renderMsg(role || 'product_manager', 'ai', formatContent(content));
+        div.innerHTML = renderMsg(role || 'project_manager', 'ai', formatContent(content));
     }} else {{
         div.innerHTML = renderUserMsg(content);
     }}
@@ -1086,7 +1086,7 @@ app.router.lifespan_context = lifespan
 # Agent Session
 # ============================================================
 
-_DEFAULT_TEAM_ROLE = "product_manager"
+_DEFAULT_TEAM_ROLE = "project_manager"
 
 
 class _ConfigShim:
@@ -1559,7 +1559,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         except Exception:
                             pass
                         finally:
-                            session.save_session()
+                            session.save_session()  # final save at end
                     task = asyncio.create_task(_run_and_save())
                     session._develop_task = task
             elif msg_type == "interrupt":

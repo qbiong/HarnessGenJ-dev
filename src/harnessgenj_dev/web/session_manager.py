@@ -34,7 +34,7 @@ class Session:
 
     id: str
     project: str
-    role: str = "product_manager"
+    role: str = "project_manager"
     messages: list[dict[str, str]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     checkpoints: list[dict[str, Any]] = field(default_factory=list)  # P3-4
@@ -82,7 +82,7 @@ class Session:
         return cls(
             id=data["id"],
             project=data["project"],
-            role=data.get("role", "product_manager"),
+            role=data.get("role", "project_manager"),
             messages=data.get("messages", []),
             metadata=data.get("metadata", {}),
             checkpoints=data.get("checkpoints", []),  # P3-4
@@ -148,7 +148,7 @@ class SessionManager:
         return sessions
 
     def create_session(
-        self, project: str, role: str = "product_manager"
+        self, project: str, role: str = "project_manager"
     ) -> Session:
         """Create a new session for a project.
 
