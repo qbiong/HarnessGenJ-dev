@@ -194,11 +194,11 @@ body {{
 }}
 
 /* Section display */
-.tab-section {{ display: none; width: 100%; height: 100%; }}
+.tab-section {{ display: none; width: 100%; height: 100%; overflow: hidden; }}
 .tab-section.active {{ display: flex; flex-direction: column; }}
 
 /* ============ Chat View ============ */
-.chat-container {{ flex: 1; display: flex; flex-direction: column; width: 100%; margin: 0 auto; }}
+.chat-container {{ flex: 1; display: flex; flex-direction: column; width: 100%; overflow: hidden; }}
 .chat-messages {{ flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }}
 .welcome {{ text-align: center; padding: 60px 20px; }}
 .welcome h2 {{ font-size: 24px; background: linear-gradient(135deg,var(--accent-cyan),var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }}
