@@ -1220,7 +1220,7 @@ class AgentSession:
             await self.send({"type": "agent_dispatch", "role": role, "role_display": self._ROLE_DISPLAY.get(role, role), "status": "started"})
         try:
             sub = Agent(llm_gateway=LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None), config=_ConfigShim())
-            task = "产品经理请你分析以下内容，请用中文回答：\n\n" + context[:2000] + "\n\n你是谁：" + self._ROLE_DISPLAY.get(role, role) + "\n请从你的专业角度分析，用中文回复。"
+            task = "项目经理请你分析以下内容，请用中文回答：\n\n" + context[:2000] + "\n\n你是谁：" + self._ROLE_DISPLAY.get(role, role) + "\n请从你的专业角度分析，用中文回复。"
             result = await sub.run(task, role=role)
             if not silent:
                 await self.send({"type": "agent_response", "role": role, "role_display": self._ROLE_DISPLAY.get(role, role), "content": result or "(无输出)"})
@@ -1266,7 +1266,7 @@ class AgentSession:
                     intro_prompt = "你是项目经理。请用中文写一句话，告诉用户你现在要调度" + self._ROLE_DISPLAY.get(role, role) + "来参与分析。说明为什么需要该角色的意见。"
                     intro_resp = await gw.chat(messages=[{"role": "user", "content": intro_prompt}], model=_get_model())
                     intro_text = intro_resp.content or ("正在协调" + self._ROLE_DISPLAY.get(role, role) + "...")
-                    await self.send({"type": "agent_response", "role": "product_manager", "role_display": "产品经理", "content": intro_text})
+                    await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": intro_text})
 
                     # 运行Agent
                     ctx = history + "\n\n## 项目经理给" + self._ROLE_DISPLAY.get(role, role) + "的指示\n" + intro_text
@@ -1279,11 +1279,11 @@ class AgentSession:
                 for r in TEAM:
                     raw += "### " + self._ROLE_DISPLAY.get(r, r) + "\n" + results.get(r, "")[:1000] + "\n\n"
                     session.messages.append({"role": "assistant", "content": "[" + self._ROLE_DISPLAY.get(r, r) + "]: " + results.get(r, "")[:500]})
-                final_prompt = "你是产品经理。团队已完成分析。用户原始请求：\n" + content[:1000] + "\n\n## 团队结论\n" + raw + "\n请综合团队结论，用中文给用户一个最终回复。包含关键发现、决策、下一步行动。简洁专业。"
+                final_prompt = "你是项目经理。团队已完成分析。用户原始请求：\n" + content[:1000] + "\n\n## 团队结论\n" + raw + "\n请综合团队结论，用中文给用户一个最终回复。包含关键发现、决策、下一步行动。简洁专业。"
                 sr = await gw.chat(messages=[{"role": "user", "content": final_prompt}], model=_get_model())
                 final_summary = sr.content or "团队分析完成。"
-                session.messages.append({"role": "assistant", "content": "[PM Final]: " + final_summary[:1000]})
-                await self.send({"type": "agent_response", "role": "product_manager", "role_display": "产品经理", "content": final_summary})
+                session.messages.append({"role": "assistant", "content": "[PJM Final]: " + final_summary[:1000]})
+                await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": final_summary})
 
             return accumulated
         except asyncio.CancelledError:
