@@ -1199,13 +1199,14 @@ class AgentSession:
             await self.send({"type": "agent_dispatch", "role": role, "role_display": self._ROLE_DISPLAY.get(role, role), "status": "started"})
         try:
             sub = Agent(llm_gateway=LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None), config=_ConfigShim())
-            result = await sub.run("PM requested your analysis. Context:\n" + context[:2000] + "\n\nFocus on your role: " + role + ". Provide your analysis and end with VOTE:PASS or VOTE:FAIL.", role=role)
+            task = "产品经理请你分析以下内容，请用中文回答：\n\n" + context[:2000] + "\n\n你是谁：" + self._ROLE_DISPLAY.get(role, role) + "\n请从你的专业角度分析，用中文回复。"
+            result = await sub.run(task, role=role)
             if not silent:
-                await self.send({"type": "agent_response", "role": role, "role_display": self._ROLE_DISPLAY.get(role, role), "content": result or "(no output)"})
+                await self.send({"type": "agent_response", "role": role, "role_display": self._ROLE_DISPLAY.get(role, role), "content": result or "(无输出)"})
             return result or ""
         except Exception as exc:
             if not silent:
-                await self.send({"type": "agent_response", "role": role, "role_display": self._ROLE_DISPLAY.get(role, role), "content": "Error: " + str(exc)})
+                await self.send({"type": "agent_response", "role": role, "role_display": self._ROLE_DISPLAY.get(role, role), "content": "错误：" + str(exc)})
             return ""
 
     async def run_develop(self, content: str) -> str | None:
@@ -1235,33 +1236,31 @@ class AgentSession:
                 gw = LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None)
                 TEAM = ["architect", "developer", "code_reviewer", "bug_hunter", "doc_writer"]
                 results = {}
-                history = "## User Request\n" + content + "\n\n## PM Analysis\n" + accumulated[:2000]
+                history = "## 用户请求\n" + content + "\n\n## 产品经理分析\n" + accumulated[:2000]
 
                 for role in TEAM:
                     if self._interrupted: break
 
-                    # PM decides how to introduce this agent
-                    intro = "PM directs the " + self._ROLE_DISPLAY.get(role, role) + " to analyze. "
-                    intro += "Previous work:\n" + history[-1000:]
-                    intro_prompt = "You are PM. Based on what has been done so far, write ONE SENTENCE to introduce the next step: asking the " + self._ROLE_DISPLAY.get(role, role) + " to contribute their expertise. Be specific about what you need from them."
+                    # PM 作为总指挥，介入解释为什么调度此Agent
+                    intro_prompt = "你是产品经理。请用中文写一句话，告诉用户你现在要调度" + self._ROLE_DISPLAY.get(role, role) + "来参与分析。说明为什么需要该角色的意见。"
                     intro_resp = await gw.chat(messages=[{"role": "user", "content": intro_prompt}], model=_get_model())
-                    intro_text = intro_resp.content or ("Now consulting " + self._ROLE_DISPLAY.get(role, role) + "...")
+                    intro_text = intro_resp.content or ("正在协调" + self._ROLE_DISPLAY.get(role, role) + "...")
                     await self.send({"type": "agent_response", "role": "product_manager", "role_display": "产品经理", "content": intro_text})
 
-                    # Run the agent
-                    ctx = history + "\n\n## PM Instructions for " + self._ROLE_DISPLAY.get(role, role) + "\n" + intro_text
+                    # 运行Agent
+                    ctx = history + "\n\n## 产品经理给" + self._ROLE_DISPLAY.get(role, role) + "的指示\n" + intro_text
                     agent_output = await self._run_sub_agent(role, ctx, silent=False)
                     results[role] = agent_output
-                    history += "\n\n## " + self._ROLE_DISPLAY.get(role, role) + " Output\n" + agent_output[:2000]
+                    history += "\n\n## " + self._ROLE_DISPLAY.get(role, role) + " 输出\n" + agent_output[:2000]
 
                 # PM final summary
                 raw = ""
                 for r in TEAM:
                     raw += "### " + self._ROLE_DISPLAY.get(r, r) + "\n" + results.get(r, "")[:1000] + "\n\n"
                     session.messages.append({"role": "assistant", "content": "[" + self._ROLE_DISPLAY.get(r, r) + "]: " + results.get(r, "")[:500]})
-                final_prompt = "You are PM. Your team completed analysis. User request:\n" + content[:1000] + "\n\n## Team Results\n" + raw + "\nSynthesize into a final response. Include key findings, decisions, action items, next steps. Be professional and concise."
+                final_prompt = "你是产品经理。团队已完成分析。用户原始请求：\n" + content[:1000] + "\n\n## 团队结论\n" + raw + "\n请综合团队结论，用中文给用户一个最终回复。包含关键发现、决策、下一步行动。简洁专业。"
                 sr = await gw.chat(messages=[{"role": "user", "content": final_prompt}], model=_get_model())
-                final_summary = sr.content or "Team analysis complete."
+                final_summary = sr.content or "团队分析完成。"
                 session.messages.append({"role": "assistant", "content": "[PM Final]: " + final_summary[:1000]})
                 await self.send({"type": "agent_response", "role": "product_manager", "role_display": "产品经理", "content": final_summary})
 
