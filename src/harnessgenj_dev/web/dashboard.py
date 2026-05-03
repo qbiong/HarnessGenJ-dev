@@ -1221,6 +1221,9 @@ class AgentSession:
                 # Dispatch architect automatically
                 arch_result = await self._run_sub_agent("architect", workflow_context)
                 if self._interrupted: return accumulated
+                # Persist to session so PM sees it next round
+                if arch_result:
+                    session.messages.append({"role": "assistant", "content": "[Architect]: " + arch_result[:1000]})
 
                 # Dispatch developer with architect's output as context
                 dev_context = workflow_context
@@ -1228,14 +1231,17 @@ class AgentSession:
                     dev_context += "\n\n## Architect Output\n" + arch_result[:2000]
                 dev_result = await self._run_sub_agent("developer", dev_context)
                 if self._interrupted: return accumulated
+                if dev_result:
+                    session.messages.append({"role": "assistant", "content": "[Developer]: " + dev_result[:1000]})
 
-                # Step 3: PM summary
+                # Step 3: PM summary — persists to session too
                 from ..llm.gateway import LLMGateway
                 gw = LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None)
                 summary_prompt = "You are PM. Your team completed work:\n\n## User\n" + content[:1000] + "\n\n## Architect\n" + (arch_result or "(no input)")[:1500] + "\n\n## Developer\n" + (dev_result or "(no input)")[:1500] + "\n\nSummarize what was done, key findings, next steps."
                 await self.send({"type": "agent_dispatch", "role": "product_manager", "role_display": "产品经理", "status": "started"})
                 summary_resp = await gw.chat(messages=[{"role": "user", "content": summary_prompt}], model=_get_model())
                 summary_text = summary_resp.content or "Team work complete."
+                session.messages.append({"role": "assistant", "content": "[PM Summary]: " + summary_text[:1000]})
                 await self.send({"type": "agent_response", "role": "product_manager", "role_display": "产品经理", "content": summary_text})
 
             return accumulated
