@@ -1273,6 +1273,7 @@ class AgentSession:
             return ""
 
     async def run_develop(self, content: str) -> str | None:
+        logger.info("run_develop START: role=%s content=%.50s", self.role, content)
         agent = self._ensure_agent()
         session = self._get_session()
         if not session.messages:
