@@ -1383,13 +1383,37 @@ async function openFileViewer(filepath) {{
     fileMdView = false;
     fileModalOverlay.classList.add('open');
     try {{
+        var resolvedPath = filepath;
         var r = await fetch('/api/files/content?path=' + encodeURIComponent(filepath));
+        // Fallback: if file not found and path has no directory, search project
+        if (r.status === 404 && filepath.indexOf('/') === -1 && filepath.indexOf('\\\\') === -1) {{
+            var searchR = await fetch('/api/files/search?path=.&pattern=' + encodeURIComponent(filepath));
+            var searchData = await searchR.json();
+            if (searchData.matches && searchData.matches.length > 0) {{
+                // Pick the best match (prefer exact filename match, shortest path)
+                var best = null;
+                for (var m of searchData.matches) {{
+                    if (m.endsWith('/' + filepath) || m === filepath) {{
+                        if (!best || m.length < best.length) best = m;
+                    }}
+                }}
+                if (!best) best = searchData.matches[0];
+                resolvedPath = best;
+                r = await fetch('/api/files/content?path=' + encodeURIComponent(resolvedPath));
+            }}
+        }}
         var data = await r.json();
-        var ext = filepath.replace(/^.*[.]/, '').toLowerCase();
+        var ext = resolvedPath.replace(/^.*[.]/, '').toLowerCase();
         var toggleBtn = document.getElementById('fm-md-toggle');
+        document.getElementById('fm-path').textContent = resolvedPath;
         if (data.is_binary) {{
             fileModalBody.className = 'file-modal-body error';
             fileModalBody.textContent = '[二进制文件，无法预览]';
+            document.getElementById('fm-info').textContent = '';
+            toggleBtn.style.display = 'none';
+        }} else if (!data.content && data.detail) {{
+            fileModalBody.className = 'file-modal-body error';
+            fileModalBody.textContent = '文件未找到: ' + filepath + (resolvedPath !== filepath ? '\\n已搜索项目目录，未找到匹配文件' : '');
             document.getElementById('fm-info').textContent = '';
             toggleBtn.style.display = 'none';
         }} else {{
@@ -2019,12 +2043,10 @@ class AgentSession:
         # @mention pattern: match all registered role IDs
         role_ids = "|".join(r["id"] for r in dispatch_roles)
         mentions = re.findall(r"@(" + role_ids + r")", pm_text) if role_ids else []
-        if not mentions:
-            # Chinese-style dispatch: match display names
-            for r in dispatch_roles:
-                dn = r.get("display_name", "")
-                if dn and dn in pm_text:
-                    mentions.append(r["id"])
+        # Note: removed Chinese-style display name matching — it caused false
+        # positives when PM naturally referenced roles in conversation (e.g.
+        # "架构师生成了文件" triggered an unwanted architect dispatch).
+        # PM must use explicit @mention syntax to dispatch sub-agents.
         # Check for team review request
         if "@review" in pm_text.replace("@review", "@review") or "团队评审" in pm_text or "投票" in pm_text:
             logger.info("_dispatch_mentions: PM requested team review via @review")
