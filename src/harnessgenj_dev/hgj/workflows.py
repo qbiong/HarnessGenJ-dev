@@ -14,6 +14,7 @@ from typing import Any
 
 class WorkflowStatus(Enum):
     """Status of a workflow execution."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -31,6 +32,7 @@ class WorkflowStep:
         status: Current execution status.
         result: Result from execution.
     """
+
     role: str
     task: str
     status: WorkflowStatus = WorkflowStatus.PENDING
@@ -47,6 +49,7 @@ class WorkflowResult:
         steps: Individual step results.
         errors: List of error messages.
     """
+
     workflow_name: str
     status: WorkflowStatus = WorkflowStatus.PENDING
     steps: list[WorkflowStep] = field(default_factory=list)

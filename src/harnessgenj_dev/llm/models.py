@@ -27,6 +27,8 @@ class StreamChunk:
     done: bool = False
     usage: UsageReport | None = None
     error: str | None = None
+    tool_calls: list[dict[str, Any]] | None = None  # P4: Structured tool calls in stream
+    reasoning_content: str | None = None  # DeepSeek thinking mode reasoning
 
 
 @dataclass

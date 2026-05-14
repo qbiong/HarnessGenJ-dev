@@ -48,12 +48,35 @@ class CodeSearch:
     """
 
     CODE_EXTENSIONS = {
-        ".py", ".js", ".ts", ".tsx", ".jsx",
-        ".go", ".rs", ".java", ".c", ".cpp", ".h", ".hpp",
-        ".rb", ".php", ".swift", ".kt", ".scala",
-        ".sh", ".bash", ".zsh",
-        ".yaml", ".yml", ".json", ".toml", ".md",
-        ".sql", ".css", ".scss", ".html",
+        ".py",
+        ".js",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".go",
+        ".rs",
+        ".java",
+        ".c",
+        ".cpp",
+        ".h",
+        ".hpp",
+        ".rb",
+        ".php",
+        ".swift",
+        ".kt",
+        ".scala",
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".yaml",
+        ".yml",
+        ".json",
+        ".toml",
+        ".md",
+        ".sql",
+        ".css",
+        ".scss",
+        ".html",
     }
 
     def __init__(self, root_path: str | Path = ".") -> None:
@@ -102,12 +125,8 @@ class CodeSearch:
             List of SearchResult objects.
         """
         if self._has_rg:
-            return self._search_rg(
-                pattern, path, case_sensitive, word, file_type, max_results
-            )
-        return self._search_python(
-            pattern, path, case_sensitive, word, file_type, max_results
-        )
+            return self._search_rg(pattern, path, case_sensitive, word, file_type, max_results)
+        return self._search_python(pattern, path, case_sensitive, word, file_type, max_results)
 
     def _search_rg(
         self,
@@ -148,17 +167,20 @@ class CodeSearch:
                 continue
             try:
                 import json
+
                 entry = json.loads(line)
                 if entry.get("type") != "match":
                     continue
                 data = entry["data"]
-                results.append(SearchResult(
-                    file_path=data["path"]["text"],
-                    line_number=data["line_number"],
-                    line_content=data["lines"]["text"].rstrip(),
-                    match_start=data.get("submatches", [{}])[0].get("start", 0),
-                    match_end=data.get("submatches", [{}])[0].get("end", 0),
-                ))
+                results.append(
+                    SearchResult(
+                        file_path=data["path"]["text"],
+                        line_number=data["line_number"],
+                        line_content=data["lines"]["text"].rstrip(),
+                        match_start=data.get("submatches", [{}])[0].get("start", 0),
+                        match_end=data.get("submatches", [{}])[0].get("end", 0),
+                    )
+                )
             except (json.JSONDecodeError, KeyError, IndexError):
                 continue
 
@@ -200,13 +222,15 @@ class CodeSearch:
                         for line_num, line in enumerate(f, 1):
                             match = regex.search(line)
                             if match:
-                                results.append(SearchResult(
-                                    file_path=str(file_path),
-                                    line_number=line_num,
-                                    line_content=line.rstrip(),
-                                    match_start=match.start(),
-                                    match_end=match.end(),
-                                ))
+                                results.append(
+                                    SearchResult(
+                                        file_path=str(file_path),
+                                        line_number=line_num,
+                                        line_content=line.rstrip(),
+                                        match_start=match.start(),
+                                        match_end=match.end(),
+                                    )
+                                )
                                 if len(results) >= max_results:
                                     return results
                 except (UnicodeDecodeError, PermissionError, OSError):
@@ -236,13 +260,15 @@ class CodeSearch:
             symbols = symbol_table.lookup_by_name(symbol_name)
             results = []
             for sym in symbols:
-                results.append(SearchResult(
-                    file_path=sym.file_path,
-                    line_number=sym.line_start,
-                    line_content=f"{sym.kind}: {sym.name}",
-                    match_start=0,
-                    match_end=len(sym.name),
-                ))
+                results.append(
+                    SearchResult(
+                        file_path=sym.file_path,
+                        line_number=sym.line_start,
+                        line_content=f"{sym.kind}: {sym.name}",
+                        match_start=0,
+                        match_end=len(sym.name),
+                    )
+                )
             return results
 
         # Fallback: full-text search

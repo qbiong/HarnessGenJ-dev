@@ -89,10 +89,7 @@ class Memory:
         """
         if tags is None:
             return list(self._entries.values())
-        return [
-            e for e in self._entries.values()
-            if any(t in e.tags for t in tags)
-        ]
+        return [e for e in self._entries.values() if any(t in e.tags for t in tags)]
 
     def keys(self) -> list[str]:
         """Return all memory keys."""

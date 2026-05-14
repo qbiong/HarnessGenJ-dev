@@ -111,9 +111,7 @@ class ProjectManager:
         return self._projects.get(name)
 
     def list_projects(self) -> list[Project]:
-        return sorted(
-            self._projects.values(), key=lambda p: p.last_accessed, reverse=True
-        )
+        return sorted(self._projects.values(), key=lambda p: p.last_accessed, reverse=True)
 
     def update_description(self, name: str, description: str) -> bool:
         """Update project description (e.g. AI-generated)."""
@@ -210,9 +208,7 @@ def add_project(
 
 def add_external_project(name: str, path: str, description: str = "") -> Project:
     """Register an existing external project by path."""
-    return _mgr.add_project(
-        name=name, path=path, description=description, is_external=True
-    )
+    return _mgr.add_project(name=name, path=path, description=description, is_external=True)
 
 
 def switch_project(name: str) -> Project:

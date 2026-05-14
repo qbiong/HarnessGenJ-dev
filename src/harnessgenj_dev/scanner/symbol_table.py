@@ -96,10 +96,7 @@ class SymbolTable:
             List of matching SymbolInfo objects.
         """
         query_lower = query.lower()
-        results = [
-            s for s in self._symbols
-            if query_lower in s.name.lower()
-        ]
+        results = [s for s in self._symbols if query_lower in s.name.lower()]
         if kind:
             results = [s for s in results if s.kind == kind]
         return results

@@ -1,4 +1,15 @@
 {
+  "extraKnownMarketplaces": {
+    "astral-sh": {
+      "source": {
+        "source": "github",
+        "repo": "astral-sh/claude-code-plugins"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "astral@astral-sh": true
+  },
   "hooks": {
     "PreToolUse": [
       {

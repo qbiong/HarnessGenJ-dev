@@ -118,6 +118,7 @@ class SearchCodeTool(BaseTool):
                 continue
             if file_pattern:
                 import fnmatch
+
                 if not fnmatch.fnmatch(file_path.name, file_pattern):
                     continue
             try:

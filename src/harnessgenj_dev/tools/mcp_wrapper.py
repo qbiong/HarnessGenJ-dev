@@ -35,9 +35,7 @@ class MCPToolWrapper(BaseTool):
     async def execute(self, **kwargs: Any) -> ToolResult:
         """Execute the MCP tool via the client manager."""
         try:
-            result = await self._mcp_manager.call_tool(
-                self._server_name, self._tool_name, kwargs
-            )
+            result = await self._mcp_manager.call_tool(self._server_name, self._tool_name, kwargs)
             if result.get("success"):
                 return ToolResult(content=result.get("content", ""))
             else:
@@ -81,6 +79,7 @@ def create_mcp_tool_class(mcp_manager, server_name: str, tool_name: str, descrip
 
     This can be used for more complex tool registration scenarios.
     """
+
     class DynamicMCPTool(BaseTool):
         name = f"mcp_{server_name}_{tool_name}"
         description = description
@@ -94,9 +93,7 @@ def create_mcp_tool_class(mcp_manager, server_name: str, tool_name: str, descrip
 
         async def execute(self, **kwargs: Any) -> ToolResult:
             try:
-                result = await self._mcp_manager.call_tool(
-                    self._server_name, self._tool_name, kwargs
-                )
+                result = await self._mcp_manager.call_tool(self._server_name, self._tool_name, kwargs)
                 if result.get("success"):
                     return ToolResult(content=result.get("content", ""))
                 else:

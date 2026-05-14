@@ -64,27 +64,29 @@ class SharedMemory(Memory):
 
     def _inject_team_info(self) -> None:
         """Set up team awareness entries."""
-        team_list = "\n".join(
-            f"- **@{role}**: {desc}" for role, desc in TEAM_MEMBERS.items()
+        team_list = "\n".join(f"- **@{role}**: {desc}" for role, desc in TEAM_MEMBERS.items())
+        self.put(
+            MemoryEntry(
+                key="_team_members",
+                content=f"## Team Members\n{team_list}",
+                tags=["team", "roles"],
+            )
         )
-        self.put(MemoryEntry(
-            key="_team_members",
-            content=f"## Team Members\n{team_list}",
-            tags=["team", "roles"],
-        ))
-        self.put(MemoryEntry(
-            key="_team_collaboration",
-            content=(
-                "## Team Collaboration\n"
-                "Use @mention syntax to assign tasks to team members.\n"
-                "Role aliases: @dev -> @developer, @pm -> @product_manager, "
-                "@reviewer -> @code_reviewer, @arch -> @architect, @docs -> @doc_writer, "
-                "@hunter -> @bug_hunter\n"
-                "Parallel execution: multiple @mentions run concurrently.\n"
-                "Each role has its own isolated memory (role memory) plus access to this shared memory."
-            ),
-            tags=["team", "collaboration"],
-        ))
+        self.put(
+            MemoryEntry(
+                key="_team_collaboration",
+                content=(
+                    "## Team Collaboration\n"
+                    "Use @mention syntax to assign tasks to team members.\n"
+                    "Role aliases: @dev -> @developer, @pdm -> @product_manager, "
+                    "@reviewer -> @code_reviewer, @arch -> @architect, @docs -> @doc_writer, "
+                    "@hunter -> @bug_hunter\n"
+                    "Parallel execution: multiple @mentions run concurrently.\n"
+                    "Each role has its own isolated memory (role memory) plus access to this shared memory."
+                ),
+                tags=["team", "collaboration"],
+            )
+        )
         self.save()
 
     def get_team_block(self) -> str:
@@ -115,11 +117,13 @@ class SharedMemory(Memory):
             tags: Optional additional tags.
         """
         entry_tags = ["knowledge"] + (tags or [])
-        self.put(MemoryEntry(
-            key=key,
-            content=content,
-            tags=entry_tags,
-        ))
+        self.put(
+            MemoryEntry(
+                key=key,
+                content=content,
+                tags=entry_tags,
+            )
+        )
         self.save()
 
     def add_decision(self, key: str, decision: str, reason: str = "") -> None:
@@ -128,11 +132,13 @@ class SharedMemory(Memory):
         if reason:
             content += f"\n**Reason**: {reason}"
         content += f"\n**Timestamp**: {time.strftime('%Y-%m-%d %H:%M:%S')}"
-        self.put(MemoryEntry(
-            key=f"decision_{key}",
-            content=content,
-            tags=["knowledge", "decision"],
-        ))
+        self.put(
+            MemoryEntry(
+                key=f"decision_{key}",
+                content=content,
+                tags=["knowledge", "decision"],
+            )
+        )
         self.save()
 
     def get_member_list(self) -> str:
@@ -147,7 +153,8 @@ class SharedMemory(Memory):
         """Return mapping of aliases to canonical role names."""
         return {
             "dev": "developer",
-            "pm": "product_manager",
+            "pdm": "product_manager",
+            "pjm": "project_manager",
             "reviewer": "code_reviewer",
             "arch": "architect",
             "docs": "doc_writer",

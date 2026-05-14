@@ -80,7 +80,8 @@ class PythonExecutor(Sandbox):
             input_bytes = stdin.encode("utf-8") if stdin else None
 
             proc = await asyncio.create_subprocess_exec(
-                "python", tmp_path,
+                "python",
+                tmp_path,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 stdin=subprocess.PIPE if stdin else None,
@@ -98,9 +99,9 @@ class PythonExecutor(Sandbox):
 
                 # Truncate large output
                 if len(out) > self.MAX_OUTPUT_BYTES:
-                    out = out[:self.MAX_OUTPUT_BYTES] + "\n[Output truncated]"
+                    out = out[: self.MAX_OUTPUT_BYTES] + "\n[Output truncated]"
                 if len(err) > self.MAX_OUTPUT_BYTES:
-                    err = err[:self.MAX_OUTPUT_BYTES] + "\n[Output truncated]"
+                    err = err[: self.MAX_OUTPUT_BYTES] + "\n[Output truncated]"
 
                 return ExecutionResult(
                     success=proc.returncode == 0,

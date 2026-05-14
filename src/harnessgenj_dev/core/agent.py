@@ -49,7 +49,7 @@ class AgentState:
 
     conversation_history: list[dict[str, str]] = field(default_factory=list)
     iteration_count: int = 0
-    max_iterations: int = 20
+    max_iterations: int = 200
     is_running: bool = False
 
 
@@ -57,7 +57,7 @@ class AgentState:
 EFFORT_SETTINGS = {
     "low": {"temperature": 0.0, "max_tokens": 1024, "max_iterations": 5},
     "medium": {"temperature": 0.1, "max_tokens": 2048, "max_iterations": 10},
-    "high": {"temperature": 0.3, "max_tokens": 4096, "max_iterations": 20},
+    "high": {"temperature": 0.3, "max_tokens": 4096, "max_iterations": 200},
     "xhigh": {"temperature": 0.5, "max_tokens": 8192, "max_iterations": 30},
     "max": {"temperature": 0.7, "max_tokens": 16384, "max_iterations": 50},
 }
@@ -74,6 +74,9 @@ class Agent:
 
 ## Your Identity
 You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-dev framework. The framework provides you with tools, memory, and team collaboration capabilities. Your job is to use these capabilities to help the USER develop their project.
+
+## Calling Convention
+{user_title_instruction}
 
 ## Framework Capabilities
 - **Multi-Role Team**: You are currently acting as one role within a team. The Project Manager coordinates ALL tasks. Only PJM does dispatch. Non-PJM roles NEVER @mention.
@@ -92,11 +95,14 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
 
 ## Instructions
 - The USER is asking you to work on THEIR project. Focus on their needs, not on the framework's internals.
-- You have access to tools that can read/write files, run shell commands, search code, run tests, and execute code.
+- You have access to tools: read_file, write_file, edit_file, search_code, list_directory, run_command, run_test.
 - When you need to perform an action, call the appropriate tool.
 - After each tool call, you will receive the result (observation).
 - Continue until the user's request is fully satisfied.
-- Be concise and focused. Only call tools when necessary.
+- You MUST use tools to do actual work. Do NOT just describe — actually CALL the tools.
+- For large projects: use search_code to find relevant code instead of reading files one by one.
+- Use list_directory to understand project structure before reading individual files.
+- Be concise and focused. Minimize tool calls where possible.
 
 ## Available Tools
 {tool_descriptions}
@@ -118,20 +124,30 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
 {harness_instructions}
 """
 
-        
-    
-    
-    
-    
-    ROLE_INSTRUCTIONS = {
+    ROLE_INSTRUCTIONS = {}  # Deprecated — use _get_dynamic_role_instructions()
+
+    _FALLBACK_INSTRUCTIONS = {
         "project_manager": (
             "## 你是主Agent，用户的唯一入口\n"
+            "### 核心原则：最小化工具调用\n"
+            "- 最多读 1-2 个关键文件了解上下文，然后立即 @mention 调度\n"
+            "- 不要自己分析代码、不要自己读大量文件 — 那是子Agent的工作\n"
+            "- 你的价值是判断+调度，不是亲自执行\n\n"
             "### 判断规则（每次对话只选一种）\n"
             "1. 简单查询（查目录/看文件/运行时状态）→ 直接用工具执行，回复结果\n"
-            "2. 单领域任务（只需一个角色）→ 直接调度该角色，等结果后汇报\n"
-            "3. 复杂任务（跨多领域）→ 按顺序调度团队：architect→developer→reviewer→hunter→writer\n\n"
+            "2. 单领域任务（只需一个角色）→ 用 @角色名 调度该角色，等结果后汇报\n"
+            "3. 复杂任务（跨多领域）→ 用 @角色名 调度全部5个角色，等待所有结果后汇总\n\n"
+            "### @mention 调度语法\n"
+            "调度时必须使用 @mention，系统会自动派发：\n"
+            "- @product_manager → 调度产品经理\n"
+            "- @architect → 调度架构师\n"
+            "- @developer → 调度开发者\n"
+            "- @code_reviewer → 调度代码审查员\n"
+            "- @bug_hunter → 调度Bug猎人\n"
+            "- @doc_writer → 调度文档编写者\n\n"
+            "示例：@architect 请设计系统架构；@developer 请实现核心模块\n\n"
             "### 你永远不自己做的事\n"
-            "写代码、设计架构、需求分析 → 调度对应角色"
+            "写代码、设计架构、需求分析 → 必须调度对应角色"
         ),
         "product_manager": (
             "## 产品经理(Product Manager) - 需求分析专家\n"
@@ -203,8 +219,6 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
         "default": "Help users write, review, and fix code efficiently and safely.",
     }
 
-
-
     def __init__(
         self,
         llm_gateway: LLMGateway | None = None,
@@ -251,8 +265,19 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
         # Detect empty project and generate onboarding instructions
         onboarding_instructions = self._get_onboarding_instructions()
 
+        # User title — loaded from settings for hot-reload (no restart needed)
+        user_title = "用户"
+        try:
+            from pathlib import Path
+            _sf = Path.home() / ".hgj-dev" / "web_settings.json"
+            if _sf.exists():
+                _sd = json.loads(_sf.read_text(encoding="utf-8"))
+                user_title = _sd.get("user_title", "用户")
+        except Exception:
+            pass
+
         # Workspace context - this is the USER's project, NOT the framework
-        project_context = "Working directory: " + os.getcwd()
+        project_context = "Working directory: " + os.getcwd() + "\n"
         if self.config:
             root = getattr(self.config, "project_root", None) or getattr(self.config, "project_path", None)
             if root:
@@ -261,11 +286,14 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
                     f"## Workspace Boundary\n"
                     f"User project directory: {root_str}\n"
                     f"HGJ-dev framework is a separate tool installed elsewhere.\n\n"
-                    f"CRITICAL: You are working on the USER's project at \"{root_str}\".\n"
+                    f'CRITICAL: You are working on the USER\'s project at "{root_str}".\n'
                     f"HGJ-dev is the development framework, not the project being developed.\n"
                     f"Do NOT modify framework files under har-genj_dev/.\n"
                     f"All operations are within the user's project directory.\n"
-                    f"When users say \"this project\", they mean THEIR project at \"{root_str}\"."
+                    f'When users say "this project", they mean THEIR project at "{root_str}".\n'
+                    f"Project knowledge base:\n"
+                    f"- PROJECT.md — 项目概述、架构决策、关键约定\n"
+                    f"- project_status.md — 实时进度跟踪表（✅完成/🔄进行中/⏳待开始/❌阻塞）"
                 )
 
         # Role identity summary (short version for prompt)
@@ -285,6 +313,7 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
             project_context=project_context,
             harness_instructions=harness_instructions,
             onboarding_instructions=onboarding_instructions,
+            user_title_instruction=f"称呼约定：所有团队成员在交流时称呼用户为「{user_title}」。不要使用PM、老板或其他称呼，统一使用「{user_title}」。",
         )
 
     def _get_onboarding_instructions(self) -> str:
@@ -337,11 +366,27 @@ After documentation is confirmed, begin implementing the first phase:
             return True
         # Check for common indicators of an existing project
         indicators = [
-            "package.json", "pyproject.toml", "Cargo.toml", "go.mod",
-            "Makefile", "CMakeLists.txt", "setup.py", "setup.cfg",
-            "pom.xml", "build.gradle", "Gemfile", "composer.json",
-            "README.md", "PROJECT.md", "HARNESS.md",
-            "src", "lib", "app", "main.py", "main.go", "index.js",
+            "package.json",
+            "pyproject.toml",
+            "Cargo.toml",
+            "go.mod",
+            "Makefile",
+            "CMakeLists.txt",
+            "setup.py",
+            "setup.cfg",
+            "pom.xml",
+            "build.gradle",
+            "Gemfile",
+            "composer.json",
+            "README.md",
+            "PROJECT.md",
+            "HARNESS.md",
+            "src",
+            "lib",
+            "app",
+            "main.py",
+            "main.go",
+            "index.js",
             ".git",
         ]
         has_content = False
@@ -398,22 +443,87 @@ After documentation is confirmed, begin implementing the first phase:
         """Get memory context for the role."""
         try:
             from ..memory import MemoryManager
+
             mgr = MemoryManager()
             return mgr.build_prompt(role)
         except Exception:
             return "Memory system not available."
 
+    @staticmethod
+    def _get_dynamic_role_instructions() -> dict[str, str]:
+        """Load role instructions from dynamic registry."""
+        try:
+            from ..memory.role_registry import get_all_role_instructions
+            return get_all_role_instructions()
+        except Exception:
+            return {}
+
     def _get_role_identity_short(self, role: str) -> str:
-        """Get short role identity."""
-        return self.ROLE_INSTRUCTIONS.get(role, self.ROLE_INSTRUCTIONS["default"])
+        """Get role identity from dynamic registry. PM gets @mention syntax."""
+        instructions = self._get_dynamic_role_instructions()
+        if role == "project_manager":
+            try:
+                from ..memory.role_registry import get_dispatch_targets, build_role_instructions
+                targets = get_dispatch_targets()
+                mention_lines = "\n".join(
+                    f"- @{t} → {build_role_instructions(t).split(chr(10))[0].replace('# ','')}"
+                    for t in targets
+                ) if targets else "- 暂无可用调度成员"
+            except Exception:
+                mention_lines = "- @architect → 调度架构师\n- @developer → 调度开发者"
+            # Build role capability matrix for PM's autonomous planning
+            role_contexts = []
+            try:
+                from ..memory.role_registry import list_roles
+                for r in list_roles():
+                    if r["id"] == "project_manager":
+                        continue
+                    caps = "; ".join(r.get("can_do", []))[:200]
+                    limits = "; ".join(r.get("must_not", []))[:200]
+                    role_contexts.append(f"- @{r['id']} ({r.get('display_name','')}): {r.get('description','')}\n  能做: {caps}\n  不能: {limits}")
+            except Exception:
+                role_contexts = mention_lines.split("\n")
+
+            return (
+                "## 你是主Agent（项目经理），用户的唯一入口\n"
+                "### 你的工作方式\n"
+                "1. 收到请求后，先判断：这个请求我自己能直接回答吗？（查文件、看状态、问信息）\n"
+                "2. 如果能 → 直接用 read_file/list_directory/search_code 去查，然后回答。永不调度。\n"
+                "3. 如果不能（需要写代码、设计、审查、测试、写文档）→ 规划工作流，用 @mention 调度对应角色。\n\n"
+                "### 团队角色能力表\n"
+                + "\n".join(role_contexts) + "\n\n"
+                "### 日常工作流 — 纯 @mention 调度\n"
+                "- 简单任务 → @一个角色即可\n"
+                "- 多步骤任务 → 按依赖顺序 @多个角色\n"
+                "- 示例：@architect 设计架构，@developer 实现\n\n"
+                "### 团队评审 — 需要重大决策时使用 @review\n"
+                "当遇到以下情况时，在回复末尾加上 @review 发起多轮团队评审：\n"
+                "- 架构变更、技术方案决策\n"
+                "- 项目阶段评审、里程碑验收\n"
+                "- 需要跨角色投票解决的问题\n"
+                "- 重大Bug修复方案验证\n"
+                "触发 @review 后系统会自动：\n"
+                "1. 按顺序调度所有角色进行评估和投票\n"
+                "2. 每轮结束后汇总 PASS/FAIL 投票\n"
+                "3. FAIL 的角色在下一轮重做\n"
+                "4. 最多 3 轮后输出最终决策\n\n"
+                "### @mention 语法\n"
+                "调度时必须使用 @mention + 角色id，系统自动派发任务。\n"
+                "可在同一句话中 @mention 多个角色，系统会按顺序依次调度。\n"
+                "示例：@architect 请设计系统架构，完成后 @developer 根据架构实现代码。\n\n"
+                "### 你永远不自己做的事\n"
+                "写代码、设计架构、做需求分析、写文档 → 必须用 @mention 调度对应角色"
+            )
+        if instructions and role in instructions:
+            return instructions[role]
+        return self._FALLBACK_INSTRUCTIONS.get(role, "You are an AI assistant.")
 
     def _get_team_context(self) -> str:
         """Get team member info."""
         try:
             from ..memory.shared_memory import TEAM_MEMBERS
-            members = "\n".join(
-                f"- **@{r}**: {d}" for r, d in TEAM_MEMBERS.items()
-            )
+
+            members = "\n".join(f"- **@{r}**: {d}" for r, d in TEAM_MEMBERS.items())
             return (
                 f"You are part of a multi-role team:\n{members}\n\n"
                 "Use @mention to refer to team members. "
@@ -431,9 +541,7 @@ After documentation is confirmed, begin implementing the first phase:
         schemas = get_schemas()
         return schemas if schemas else None
 
-    async def _execute_tool_call(
-        self, tool_call: dict[str, Any]
-    ) -> dict[str, str]:
+    async def _execute_tool_call(self, tool_call: dict[str, Any]) -> dict[str, str]:
         """Execute a single tool call and format the result.
 
         Args:
@@ -515,6 +623,7 @@ After documentation is confirmed, begin implementing the first phase:
         # Look for tool call patterns in content
         # Pattern: ```tool:tool_name\n{json args}\n```
         import re
+
         pattern = r"```tool:(\w+)\n(.*?)\n```"
         for match in re.finditer(pattern, content, re.DOTALL):
             name = match.group(1)
@@ -542,16 +651,10 @@ After documentation is confirmed, begin implementing the first phase:
         if not self.state.conversation_history:
             self.state.iteration_count = 0
             system_prompt = self._build_system_prompt(role)
-            self.state.conversation_history.append(
-                {"role": "system", "content": system_prompt}
-            )
-            self.state.conversation_history.append(
-                {"role": "user", "content": user_input}
-            )
+            self.state.conversation_history.append({"role": "system", "content": system_prompt})
+            self.state.conversation_history.append({"role": "user", "content": user_input})
         elif self.state.conversation_history[-1].get("role") != "user":
-            self.state.conversation_history.append(
-                {"role": "user", "content": user_input}
-            )
+            self.state.conversation_history.append({"role": "user", "content": user_input})
 
         # Fire session_start hook
         hooks = get_hook_manager()
@@ -565,9 +668,7 @@ After documentation is confirmed, begin implementing the first phase:
         finally:
             self.state.is_running = False
 
-    async def run_stream(
-        self, user_input: str, role: str = "default"
-    ) -> AsyncIterator[str]:
+    async def run_stream(self, user_input: str, role: str = "default") -> AsyncIterator[str]:
         """Run the agent with streaming output.
 
         Args:
@@ -583,13 +684,9 @@ After documentation is confirmed, begin implementing the first phase:
         if not self.state.conversation_history:
             self.state.iteration_count = 0
             system_prompt = self._build_system_prompt(role)
-            self.state.conversation_history.append(
-                {"role": "system", "content": system_prompt}
-            )
+            self.state.conversation_history.append({"role": "system", "content": system_prompt})
         if not self.state.conversation_history or self.state.conversation_history[-1].get("role") != "user":
-            self.state.conversation_history.append(
-                {"role": "user", "content": user_input}
-            )
+            self.state.conversation_history.append({"role": "user", "content": user_input})
 
         try:
             async for chunk in self._react_loop_stream():
@@ -621,13 +718,9 @@ After documentation is confirmed, begin implementing the first phase:
             # Tier 1: 每次 API 调用前进行 micro-compact（清理旧 tool results）
             # 这是一个轻量级操作，不改变消息结构，只是清理旧内容
             if self.state.conversation_history:
-                compaction_result = context_mgr.tier1_micro_compact(
-                    self.state.conversation_history
-                )
+                compaction_result = context_mgr.tier1_micro_compact(self.state.conversation_history)
                 if compaction_result.tool_results_truncated > 0:
-                    saved_tokens = (
-                        compaction_result.original_tokens - compaction_result.compacted_tokens
-                    )
+                    saved_tokens = compaction_result.original_tokens - compaction_result.compacted_tokens
                     logger.debug(
                         f"Tier 1 compaction: cleared {compaction_result.tool_results_truncated} "
                         f"old tool results, saved {saved_tokens} tokens"
@@ -727,10 +820,8 @@ After documentation is confirmed, begin implementing the first phase:
                 )
 
         # Max iterations reached
-        return (
-            f"Agent reached maximum iterations ({max_iter}). "
-            f"Last response: {response.content}"
-        )
+        logger.info("Agent reached max iterations (%d) in _react_loop", max_iter)
+        return response.content or ""
 
     async def _react_loop_stream(self) -> AsyncIterator[str]:
         """Streaming version of ReAct loop.
@@ -753,49 +844,103 @@ After documentation is confirmed, begin implementing the first phase:
 
             # 检查是否需要更高级别的压缩
             if context_mgr.needs_compaction(self.state.conversation_history):
-                current_tokens = context_mgr.get_usage_ratio(
-                    self.state.conversation_history
-                )
+                current_tokens = context_mgr.get_usage_ratio(self.state.conversation_history)
                 tier = 3 if current_tokens >= 0.95 else (2 if current_tokens >= 0.85 else 1)
-                result = context_mgr.compress(
-                    self.state.conversation_history, force_tier=tier
-                )
+                result = context_mgr.compress(self.state.conversation_history, force_tier=tier)
                 logger.info(
                     f"Tier {result.tier_applied} compaction (stream): "
                     f"{result.original_tokens} -> {result.compacted_tokens} tokens"
                 )
 
             # Stream from LLM
+            accumulated_tool_calls: list[dict[str, Any]] = []
+            accumulated_reasoning_content = ""
+            reasoning_phase = False  # True while we're seeing reasoning_content chunks
             try:
                 async for chunk in self.llm_gateway.stream(
                     messages=self.state.conversation_history,
                     tools=self._get_tool_schemas(),
                 ):
+                    if chunk.reasoning_content:
+                        accumulated_reasoning_content += chunk.reasoning_content
+                        reasoning_phase = True
+                    # Don't yield thinking markers — they're sent separately via 'thinking' message
+                    if reasoning_phase and chunk.reasoning_content is None and chunk.content is None and accumulated_reasoning_content:
+                        reasoning_phase = False
                     if chunk.error:
-                        yield f"\n[Error: {chunk.error}]\n"
+                        logger.warning("LLM stream chunk error: %s", chunk.error[:200])
+                        yield "[Agent error: " + chunk.error[:100] + "]\n"
                         return
 
                     if chunk.content:
                         accumulated_content += chunk.content
                         yield chunk.content
 
+                    if chunk.tool_calls:
+                        # Merge streaming tool call fragments by index or ID
+                        for tc in chunk.tool_calls:
+                            tc_id = tc.get("id", "")
+                            tc_idx = tc.get("index", -1)
+                            func = tc.get("function", {})
+                            existing = None
+                            # Match by ID (first chunk) or by index (continuation chunks)
+                            for existing_tc in accumulated_tool_calls:
+                                if tc_id and existing_tc.get("id") == tc_id:
+                                    existing = existing_tc
+                                    break
+                                if tc_idx >= 0 and existing_tc.get("index") == tc_idx:
+                                    existing = existing_tc
+                                    break
+                            if existing:
+                                prev_args = existing.get("function", {}).get("arguments", "")
+                                new_args = func.get("arguments", "")
+                                if prev_args and new_args:
+                                    existing["function"]["arguments"] = prev_args + new_args
+                                elif new_args:
+                                    existing["function"]["arguments"] = new_args
+                                # Preserve the real ID from first delta chunk
+                                if tc_id and not existing.get("id"):
+                                    existing["id"] = tc_id
+                            else:
+                                accumulated_tool_calls.append(tc)
+
                     if chunk.done:
                         break
             except Exception as exc:
-                logger.exception("LLM stream failed")
-                yield f"\n[Error: LLM stream failed - {exc}]\n"
+                error_str = str(exc)[:200]
+                logger.exception("LLM stream failed: %s", error_str)
+                if accumulated_content:
+                    yield "\n"  # Already have some content, finish gracefully
+                else:
+                    yield f"\n[Agent stream error: {error_str}]\n"
                 return
 
-            # Append to history
-            self.state.conversation_history.append(
-                {"role": "assistant", "content": accumulated_content}
-            )
+            # Tool calls: use structured ones if available, else parse from content
+            if accumulated_tool_calls:
+                tool_calls = accumulated_tool_calls
+            else:
+                from ..llm.models import LLMResponse
+                mock_response = LLMResponse(content=accumulated_content)
+                tool_calls = self._parse_tool_calls(mock_response)
 
-            # Check for tool calls (parse from accumulated content)
-            # Create a mock response for parsing
-            from ..llm.models import LLMResponse
-            mock_response = LLMResponse(content=accumulated_content)
-            tool_calls = self._parse_tool_calls(mock_response)
+            # Append to history — include tool_calls + reasoning_content for API compatibility
+            assistant_msg = {"role": "assistant", "content": accumulated_content}
+            if accumulated_reasoning_content:
+                assistant_msg["reasoning_content"] = accumulated_reasoning_content
+            if tool_calls:
+                assistant_msg["tool_calls"] = [
+                    {
+                        "id": tc.get("id", f"call_{i}"),
+                        "type": "function",
+                        "function": {
+                            "name": tc.get("name", "") or tc.get("function", {}).get("name", ""),
+                            "arguments": json.dumps(tc.get("input", {})) if "input" in tc
+                                       else tc.get("function", {}).get("arguments", ""),
+                        },
+                    }
+                    for i, tc in enumerate(tool_calls)
+                ]
+            self.state.conversation_history.append(assistant_msg)
 
             if not tool_calls:
                 # No tool calls -> done
@@ -803,17 +948,26 @@ After documentation is confirmed, begin implementing the first phase:
                 return
 
             # Execute tools with parallel execution (for streaming version too)
-            # Execute tools and collect observations
-            yield "\n[Executing tools...]\n"
+            # Tool execution info goes to reasoning block, not main content
+            accumulated_reasoning_content += "\n[执行工具中...]"
 
-            tool_call_dicts = [
-                {
-                    "name": tc.get("name", ""),
-                    "input": tc.get("input", {}),
+            tool_call_dicts = []
+            for i, tc in enumerate(tool_calls):
+                # Handle both streaming API format (function.name) and parsed format (name)
+                if "function" in tc:
+                    name = tc["function"].get("name", "")
+                    try:
+                        args = json.loads(tc["function"].get("arguments", "{}"))
+                    except (json.JSONDecodeError, TypeError):
+                        args = {"raw": tc["function"].get("arguments", "")}
+                else:
+                    name = tc.get("name", "")
+                    args = tc.get("input", {})
+                tool_call_dicts.append({
+                    "name": name,
+                    "input": args,
                     "id": tc.get("id", f"call_{i}"),
-                }
-                for i, tc in enumerate(tool_calls)
-            ]
+                })
             results = await execute_tools_parallel(tool_call_dicts)
 
             for i, result in enumerate(results):
@@ -824,8 +978,15 @@ After documentation is confirmed, begin implementing the first phase:
                 }
                 self.state.conversation_history.append(observation)
 
-        # Max iterations
-        yield f"\n[Reached maximum iterations ({max_iter})]\n"
+            # Accumulate tool execution summary into reasoning block (not into main content)
+            tool_summary = "; ".join(
+                f"{td.get('name', '?')}({str(td.get('input', {}))[:60]})"
+                for td in tool_call_dicts
+            )
+            accumulated_reasoning_content += f"\n[工具: {tool_summary}]"
+
+        # Max iterations — silently log, don't clutter output
+        logger.info("Agent reached max iterations (%d)", max_iter)
 
     def interrupt(self) -> None:
         """Interrupt the current agent execution."""
@@ -838,8 +999,6 @@ After documentation is confirmed, begin implementing the first phase:
         # Fire stop hook synchronously (fire and forget)
         hooks = get_hook_manager()
         try:
-            asyncio.get_event_loop().run_until_complete(
-                hooks.fire("stop", reason="user_interrupt")
-            )
+            asyncio.get_event_loop().run_until_complete(hooks.fire("stop", reason="user_interrupt"))
         except Exception:
             pass  # Best effort

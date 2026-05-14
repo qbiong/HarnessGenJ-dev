@@ -4,6 +4,7 @@ from __future__ import annotations
 
 try:
     import tiktoken
+
     _HAS_TIKTOKEN = True
 except ImportError:
     _HAS_TIKTOKEN = False

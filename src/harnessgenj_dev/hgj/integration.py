@@ -96,10 +96,7 @@ class HGJIntegration:
             self._harness = Harness(project_name, **kwargs)
             logger.info("HGJ Harness initialized for project: %s", project_name)
         except ImportError:
-            logger.warning(
-                "harnessgenj package not installed. "
-                "HGJ integration features will be limited."
-            )
+            logger.warning("harnessgenj package not installed. HGJ integration features will be limited.")
             self._harness = None
         except Exception as exc:
             logger.error("Failed to initialize HGJ Harness: %s", exc)
@@ -322,9 +319,7 @@ class HGJIntegration:
                     metadata={"source": "harness_adversarial"},
                 )
             except Exception as exc:
-                logger.warning(
-                    "HGJ adversarial_develop failed: %s", exc
-                )
+                logger.warning("HGJ adversarial_develop failed: %s", exc)
 
         return HGJDevResult(
             success=False,

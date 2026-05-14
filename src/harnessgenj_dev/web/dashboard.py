@@ -1,4 +1,5 @@
 """Web Dashboard - FastAPI server with WebSocket streaming and REST APIs."""
+
 from __future__ import annotations
 
 import asyncio
@@ -14,7 +15,7 @@ from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnec
 from fastapi.responses import HTMLResponse
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 
 # ============================================================
@@ -82,6 +83,7 @@ def _has_api_key() -> bool:
 
 def _get_system_metrics() -> dict[str, Any]:
     import platform
+
     return {
         "platform": platform.system(),
         "python_version": platform.python_version(),
@@ -95,6 +97,7 @@ _start_time = time.time()
 # ===========================================================================
 # Unified SPA Dashboard
 # ===========================================================================
+
 
 def _get_dashboard_html(active_tab: str = "chat", settings_data: dict | None = None) -> str:
     """Return the single-page application HTML for the dashboard.
@@ -233,6 +236,7 @@ body {{
 .msg-avatar {{ width: 32px; height: 32px; min-width: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }}
 .msg-avatar.pjm {{ background: linear-gradient(135deg, #f59e0b22, #f59e0b44); color: #fbbf24; border: 1px solid #f59e0b33; }}
 .msg-avatar.pm {{ background: linear-gradient(135deg, #00d4ff22, #00d4ff44); color: #00d4ff; border: 1px solid #00d4ff33; }}
+.msg-avatar.pdm {{ background: linear-gradient(135deg, #00d4ff22, #00d4ff44); color: #00d4ff; border: 1px solid #00d4ff33; }}
 .msg-avatar.arch {{ background: linear-gradient(135deg, #3b82f622, #3b82f644); color: #60a5fa; border: 1px solid #3b82f633; }}
 .msg-avatar.dev {{ background: linear-gradient(135deg, #10b98122, #10b98144); color: #34d399; border: 1px solid #10b98133; }}
 .msg-avatar.rev {{ background: linear-gradient(135deg, #f0883e22, #f0883e44); color: #fbbf24; border: 1px solid #f0883e33; }}
@@ -243,6 +247,7 @@ body {{
 .msg-sender {{ font-size: 10px; font-weight: 600; margin-bottom: 3px; padding-left: 2px; letter-spacing: 0.2px; }}
 .msg-sender.pjm {{ color: #fbbf24; }}
 .msg-sender.pm {{ color: #00d4ff; }}
+.msg-sender.pdm {{ color: #00d4ff; }}
 .msg-sender.arch {{ color: #60a5fa; }}
 .msg-sender.dev {{ color: #34d399; }}
 .msg-sender.rev {{ color: #fbbf24; }}
@@ -271,6 +276,11 @@ body {{
 .msg-bubble pre {{ background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 12px; margin: 6px 0; border: 1px solid rgba(255,255,255,0.04); }}
 .msg-group:not(.user) .msg-bubble {{ border-color: rgba(0,212,255,0.08); }}
 .msg-group.user .msg-bubble {{ border-color: rgba(168,85,247,0.15); }}
+/* Thinking block — DeepSeek-style collapsible reasoning */
+.thinking-block {{ margin: 2px 42px 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; font-size: 11px; color: var(--text-muted); overflow: hidden; }}
+.thinking-header {{ padding: 6px 10px; cursor: pointer; user-select: none; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }}
+.thinking-header:hover {{ color: var(--text-secondary); background: rgba(255,255,255,0.02); }}
+.thinking-content {{ padding: 8px 10px; border-top: 1px solid var(--border); white-space: pre-wrap; font-size: 11px; line-height: 1.5; max-height: 400px; overflow-y: auto; color: var(--text-secondary); }}
 /* Tool call card */
 .tool-card {{ align-self: flex-start; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; max-width: 70%; margin: 4px 0; font-size: 12px; }}
 .tool-card .tc-name {{ color: var(--accent-cyan); font-weight: 600; font-size: 11px; }}
@@ -319,6 +329,75 @@ body {{
 .status-box {{ padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 14px; font-size: 13px; }}
 .status-box.ok {{ background: #122d1c; border: 1px solid var(--success); color: var(--success); }}
 .status-box.warn {{ background: #2d2212; border: 1px solid var(--warning); color: var(--warning); }}
+
+/* ============ File Link in Chat ============ */
+.file-link {{
+    color: var(--accent-cyan); cursor: pointer; text-decoration: underline;
+    text-decoration-style: dotted; text-underline-offset: 3px;
+    transition: all var(--transition);
+}}
+.file-link:hover {{ color: #fff; text-decoration-style: solid; }}
+
+/* ============ File Viewer Modal ============ */
+.file-modal-overlay {{
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7); z-index: 200; align-items: center; justify-content: center;
+}}
+.file-modal-overlay.open {{ display: flex; }}
+.file-modal {{
+    background: var(--bg-secondary); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); width: 85vw; max-width: 900px;
+    max-height: 80vh; display: flex; flex-direction: column;
+    box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+}}
+.file-modal-header {{
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 12px; flex-shrink: 0;
+}}
+.file-modal-header .fm-path {{ color: var(--accent-cyan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+.file-modal-header .fm-close {{
+    background: none; border: none; color: var(--text-muted); font-size: 20px;
+    cursor: pointer; padding: 0 4px; line-height: 1;
+}}
+.file-modal-header .fm-close:hover {{ color: var(--text-primary); }}
+.file-modal-body {{
+    flex: 1; overflow: auto; padding: 16px 20px;
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.7;
+    white-space: pre-wrap; color: var(--text-primary);
+    background: #0a0e14;
+}}
+.file-modal-body.loading {{ color: var(--text-muted); text-align: center; padding: 40px; }}
+.file-modal-body.error {{ color: var(--error); }}
+.file-modal-body.md-rendered {{
+    white-space: normal; font-family: var(--font-sans); font-size: 13px;
+    line-height: 1.8; padding: 20px 24px; background: var(--bg-primary);
+}}
+.file-modal-body.md-rendered h1 {{ font-size: 1.6em; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin: 16px 0 12px; }}
+.file-modal-body.md-rendered h2 {{ font-size: 1.3em; margin: 14px 0 10px; color: var(--accent-cyan); }}
+.file-modal-body.md-rendered h3 {{ font-size: 1.1em; margin: 12px 0 8px; }}
+.file-modal-body.md-rendered p {{ margin: 6px 0; }}
+.file-modal-body.md-rendered code {{ background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; color: #e06c75; }}
+.file-modal-body.md-rendered pre {{ background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 0.85em; margin: 8px 0; }}
+.file-modal-body.md-rendered table {{ border-collapse: collapse; width: 100%; margin: 8px 0; }}
+.file-modal-body.md-rendered th, .file-modal-body.md-rendered td {{ border: 1px solid var(--border); padding: 6px 10px; text-align: left; font-size: 0.9em; }}
+.file-modal-body.md-rendered th {{ background: var(--bg-secondary); color: var(--accent-cyan); }}
+.file-modal-body.md-rendered ul, .file-modal-body.md-rendered ol {{ padding-left: 20px; margin: 6px 0; }}
+.file-modal-body.md-rendered blockquote {{ border-left: 3px solid var(--accent-cyan); padding-left: 12px; color: var(--text-secondary); margin: 8px 0; }}
+.file-modal-body.md-rendered a {{ color: var(--accent-cyan); }}
+.file-modal-body.md-rendered hr {{ border: none; border-top: 1px solid var(--border); margin: 12px 0; }}
+.file-modal-footer {{
+    padding: 8px 20px; border-top: 1px solid var(--border);
+    font-size: 10px; color: var(--text-muted); flex-shrink: 0;
+    display: flex; justify-content: space-between;
+}}
+/* Session ID badge */
+.session-id-badge {{
+    font-family: var(--font-mono); font-size: 9px; color: var(--text-muted);
+    background: var(--bg-primary); padding: 1px 6px; border-radius: 3px;
+    margin-left: 6px; cursor: pointer; user-select: all;
+}}
+.session-id-badge:hover {{ color: var(--accent-cyan); }}
 </style>
 </head>
 <body>
@@ -328,10 +407,11 @@ body {{
     <div class="topnav-brand">HGJ-dev</div>
     <span style="flex:1"></span>
     <div class="topnav-tabs">
-        <a class="topnav-tab{' active' if active_tab == 'chat' else ''}" onclick="switchTab('chat')">对话</a>
-        <a class="topnav-tab{' active' if active_tab == 'projects' else ''}" onclick="switchTab('projects')">项目</a>
-        <a class="topnav-tab{' active' if active_tab == 'files' else ''}" onclick="switchTab('files')">文件</a>
-        <a class="topnav-tab{' active' if active_tab == 'settings' else ''}" onclick="switchTab('settings')">设置</a>
+        <a class="topnav-tab{" active" if active_tab == "chat" else ""}" onclick="switchTab('chat')">对话</a>
+        <a class="topnav-tab{" active" if active_tab == "projects" else ""}" onclick="switchTab('projects')">项目</a>
+        <a class="topnav-tab{" active" if active_tab == "files" else ""}" onclick="switchTab('files')">文件</a>
+        <a class="topnav-tab{" active" if active_tab == "roles" else ""}" onclick="switchTab('roles')">角色</a>
+        <a class="topnav-tab{" active" if active_tab == "settings" else ""}" onclick="switchTab('settings')">设置</a>
     </div>
     <div class="topnav-right">
         <span class="status-dot idle" id="status-dot"></span>
@@ -344,7 +424,7 @@ body {{
 <div class="main">
 
 <!-- ===== Chat Section ===== -->
-<div class="tab-section{' active' if active_tab == 'chat' else ''}" id="tab-chat">
+<div class="tab-section{" active" if active_tab == "chat" else ""}" id="tab-chat">
     <div class="session-bar">
         <select class="role-select" id="project-select" onchange="switchActiveProject()">
             <option value="">加载中...</option>
@@ -352,6 +432,8 @@ body {{
         <span style="font-size:11px;color:var(--text-muted)">|</span>
         <span style="font-size:11px;color:var(--accent-cyan);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px;" id="project-info"></span>
         <span style="font-size:11px;color:var(--text-muted)">|</span>
+        <span style="font-size:11px;color:var(--text-muted)">|</span>
+        <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono);" id="current-session-id" title="当前会话ID"></span>
         <select class="role-select" id="role-select" style="display:none;"><option value="project_manager" selected>Project Manager</option></select>
         <span style="font-size:11px;color:var(--text-muted)" id="key-info"></span>
         <span style="flex:1"></span>
@@ -389,7 +471,7 @@ body {{
 </div>
 
 <!-- ===== Projects Section ===== -->
-<div class="tab-section{' active' if active_tab == 'projects' else ''}" id="tab-projects">
+<div class="tab-section{" active" if active_tab == "projects" else ""}" id="tab-projects">
     <div class="projects-container">
         <h2>项目列表</h2>
         <div id="projects-list"></div>
@@ -427,7 +509,7 @@ body {{
 </div>
 
 <!-- ===== Files Section ===== -->
-<div class="tab-section{' active' if active_tab == 'files' else ''}" id="tab-files">
+<div class="tab-section{" active" if active_tab == "files" else ""}" id="tab-files">
     <div class="files-container">
         <h2>文件浏览器</h2>
         <div id="file-listing"></div>
@@ -436,7 +518,38 @@ body {{
 </div>
 
 <!-- ===== Settings Section ===== -->
-<div class="tab-section{' active' if active_tab == 'settings' else ''}" id="tab-settings">
+<div class="tab-section{" active" if active_tab == "roles" else ""}" id="tab-roles">
+    <div class="settings-container">
+        <h2>角色配置与新增</h2>
+        <div class="settings-section">
+            <h3>当前团队角色</h3>
+            <div id="roles-list" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px;"></div>
+        </div>
+        <div class="settings-section">
+            <h3>新增自定义角色</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:600px;">
+                <div><label class="settings-label">角色ID (英文)</label><input class="settings-input" id="new-role-id" placeholder="e.g. security_auditor"></div>
+                <div><label class="settings-label">显示名称</label><input class="settings-input" id="new-role-name" placeholder="e.g. 安全审计员"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:600px;margin-top:8px;">
+                <div><label class="settings-label">头像缩写 (2-3字符)</label><input class="settings-input" id="new-role-avatar" placeholder="e.g. SA" maxlength="3"></div>
+                <div><label class="settings-label">颜色标识</label><select class="settings-input" id="new-role-color"><option value="pjm">金黄</option><option value="pm">紫色</option><option value="arch">青色</option><option value="dev">蓝色</option><option value="rev">绿色</option><option value="hunt">红色</option><option value="doc">灰色</option></select></div>
+            </div>
+            <div style="margin-top:8px;"><label class="settings-label">角色描述</label><input class="settings-input" id="new-role-desc" placeholder="这个角色负责什么"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;">
+                <div><label class="settings-label">可以做什么 (每行一项)</label><textarea class="settings-input" id="new-role-can" rows="4" placeholder="分析安全漏洞
+执行渗透测试
+编写安全报告"></textarea></div>
+                <div><label class="settings-label">不能做什么 (每行一项)</label><textarea class="settings-input" id="new-role-cannot" rows="4" placeholder="修改代码
+调度其他角色"></textarea></div>
+            </div>
+            <button class="btn btn-send" onclick="addRole()" style="margin-top:12px;">创建角色并初始化记忆空间</button>
+            <span id="roles-status" style="color:var(--accent-cyan);margin-left:12px;font-size:13px;"></span>
+        </div>
+    </div>
+</div>
+
+<div class="tab-section{" active" if active_tab == "settings" else ""}" id="tab-settings">
     <div class="settings-container">
         <h2>设置</h2>
         <div id="settings-status"></div>
@@ -470,6 +583,9 @@ body {{
             <input class="settings-input" id="s-base-url" placeholder="例如 https://api.deepseek.com" />
             <label class="settings-label">API 密钥</label>
             <input class="settings-input" type="password" id="s-api-key" autocomplete="off" />
+            <label class="settings-label">角色对我的称呼</label>
+            <input class="settings-input" id="s-user-title" placeholder="例如：老板、用户、开发者" />
+            <div class="settings-hint">所有AI角色在与您交流时使用此称呼。默认：用户</div>
             <div class="settings-btns">
                 <button class="btn btn-send" onclick="saveSettings()">保存</button>
                 <button class="btn btn-secondary" onclick="clearSettings()">清除</button>
@@ -481,7 +597,7 @@ body {{
             <div style="font-size:13px;color:var(--text-secondary);">
                 <p>提供商: <span id="s-current-provider" style="color:var(--text-primary);">{provider}</span></p>
                 <p style="margin-top:6px;">模型: <span id="s-current-model" style="color:var(--text-primary);">{effective_model}</span></p>
-                <p style="margin-top:6px;">API 密钥: <span id="s-current-key" style="color:var(--text-primary);">{'sk-' + _get_api_key()[:6] + '...' if _get_api_key() else '未设置'}</span></p>
+                <p style="margin-top:6px;">API 密钥: <span id="s-current-key" style="color:var(--text-primary);">{"sk-" + _get_api_key()[:6] + "..." if _get_api_key() else "未设置"}</span></p>
             </div>
         </div>
     </div>
@@ -500,14 +616,79 @@ function switchTab(tab) {{
     document.querySelectorAll('.topnav-tab').forEach(el => el.classList.remove('active'));
     document.getElementById('tab-' + tab).classList.add('active');
     document.querySelectorAll('.topnav-tab').forEach(el => {{
-        if (el.textContent.trim() === ['对话','项目','文件','设置'][['chat','projects','files','settings'].indexOf(tab)]) el.classList.add('active');
+        if (el.textContent.trim() === ['对话','项目','文件','角色','设置'][['chat','projects','files','roles','settings'].indexOf(tab)]) el.classList.add('active');
     }});
     if (tab === 'projects') loadProjects();
     if (tab === 'files') listDir('');
+    if (tab === 'roles') loadRoles();
 }}
 // Support hash-based deep links
-var tabFromHash = {{'#chat':'chat','#projects':'projects','#files':'files','#settings':'settings'}}[location.hash];
+var tabFromHash = {{'#chat':'chat','#projects':'projects','#files':'files','#roles':'roles','#settings':'settings'}}[location.hash];
 if (tabFromHash) switchTab(tabFromHash);
+
+// ---- Role Management ----
+async function loadRoles() {{
+    try {{
+        var r = await fetch('/api/roles');
+        var data = await r.json();
+        var el = document.getElementById('roles-list');
+        el.innerHTML = data.roles.map(function(role) {{
+            var colorMap = {{'pjm':'#fbbf24','pm':'#a855f7','arch':'#00d4ff','dev':'#3b82f6','rev':'#10b981','hunt':'#ef4444','doc':'#94a3b8'}};
+            var bgColor = colorMap[role.color] || '#94a3b8';
+            var isBuiltin = role.builtin ? ' (内置)' : '';
+            var canList = (role.can_do || []).slice(0,3).join(', ');
+            var cannotList = (role.must_not || []).slice(0,2).join(', ');
+            var deleteBtn = role.builtin ? '' : '<button onclick=\"deleteRole(\\'' + role.id + '\\')\" style=\"background:var(--error);color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;\">删除</button>';
+            var coordinator = role.is_coordinator ? '<span style=\"font-size:10px;background:var(--accent-cyan);color:#000;padding:1px 6px;border-radius:3px;margin-left:4px;\">协调者</span>' : '';
+            var dispatchTarget = data.dispatch_targets.includes(role.id) ? '<span style=\"font-size:10px;background:rgba(16,185,129,0.2);color:var(--success);padding:1px 6px;border-radius:3px;margin-left:4px;\">可调度</span>' : '';
+            return '<div style=\"background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px;min-width:260px;flex:1;\">' +
+                '<div style=\"display:flex;align-items:center;gap:8px;margin-bottom:8px;\">' +
+                '<div style=\"width:36px;height:36px;border-radius:50%;background:' + bgColor + '22;color:' + bgColor + ';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;border:1px solid ' + bgColor + '44;\">' + (role.avatar || role.id.substring(0,2).toUpperCase()) + '</div>' +
+                '<div><strong>' + role.display_name + '</strong>' + isBuiltin + coordinator + dispatchTarget + '<br><code style=\"font-size:10px;color:var(--text-muted);\">@' + role.id + '</code></div>' +
+                deleteBtn + '</div>' +
+                '<div style=\"font-size:11px;color:var(--text-secondary);margin-bottom:4px;\">' + (role.description || '') + '</div>' +
+                '<div style=\"font-size:10px;color:var(--success);\">✓ ' + (canList || '无') + '</div>' +
+                '<div style=\"font-size:10px;color:var(--error);\">✗ ' + (cannotList || '无') + '</div>' +
+                '</div>';
+        }}).join('');
+    }} catch(e) {{ console.error(e); }}
+}}
+
+async function addRole() {{
+    var roleId = document.getElementById('new-role-id').value.trim();
+    if (!roleId) {{ alert('请输入角色ID'); return; }}
+    var body = {{
+        id: roleId,
+        display_name: document.getElementById('new-role-name').value.trim() || roleId,
+        avatar: document.getElementById('new-role-avatar').value.trim() || roleId.substring(0,2).toUpperCase(),
+        color: document.getElementById('new-role-color').value,
+        description: document.getElementById('new-role-desc').value.trim(),
+        can_do: document.getElementById('new-role-can').value.trim(),
+        must_not: document.getElementById('new-role-cannot').value.trim(),
+    }};
+    try {{
+        var r = await fetch('/api/roles', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify(body)}});
+        var data = await r.json();
+        if (data.status === 'created') {{
+            document.getElementById('roles-status').textContent = '✓ 角色 ' + roleId + ' 已创建，记忆空间: ' + data.memory_path;
+            document.getElementById('new-role-id').value = '';
+            document.getElementById('new-role-name').value = '';
+            loadRoles();
+        }} else {{
+            document.getElementById('roles-status').textContent = '错误: ' + JSON.stringify(data);
+        }}
+    }} catch(e) {{
+        document.getElementById('roles-status').textContent = '错误: ' + e.message;
+    }}
+}}
+
+async function deleteRole(roleId) {{
+    if (!confirm('确定删除角色 ' + roleId + '？')) return;
+    try {{
+        await fetch('/api/roles/' + roleId, {{method:'DELETE'}});
+        loadRoles();
+    }} catch(e) {{ console.error(e); }}
+}}
 
 // ---- Session Panel ----
 function toggleSessionPanel() {{
@@ -548,29 +729,68 @@ function connect() {{
         var msg = JSON.parse(e.data);
         handleMessage(msg);
     }};
-    ws.onclose = function() {{
-        console.log('WS disconnected, reconnecting in 2s...');
+    ws.onerror = function(e) {{
+        console.error('WS error:', e);
+    }};
+    ws.onclose = function(e) {{
+        console.log('WS disconnected (code=' + e.code + '), reconnecting in 2s...');
         setTimeout(connect, 2000);
     }};
 }}
 connect();
 
 function handleMessage(msg) {{
+    console.log('handleMessage: type=' + msg.type + (msg.role ? ' role=' + msg.role : '') + (msg.content ? ' content=' + msg.content.substring(0,80) : ''));
+
+    // Get the actual last .msg-group.ai (querySelector returns FIRST match, not last)
+    function getLastAiGroup() {{
+        var all = chat.querySelectorAll('.msg-group.ai');
+        return all.length > 0 ? all[all.length - 1] : null;
+    }}
+
+    // Check if last visible element is a user message; if so, AI response starts fresh
+    function shouldStartNewAiGroup() {{
+        var last = chat.lastElementChild;
+        if (!last) return true;
+        // Skip tool-card and system messages, but treat them as a boundary
+        var skipped = false;
+        while (last && (last.classList.contains('tool-card') || last.classList.contains('system'))) {{
+            last = last.previousElementSibling;
+            skipped = true;
+        }}
+        // After agent_dispatch or tool-card, always start a new AI group
+        if (skipped) return true;
+        if (!last) return true;
+        // addMsg wraps messages in a classless div; check inner .msg-group
+        var inner = last.classList.contains('msg-group') ? last : last.querySelector('.msg-group');
+        if (!inner) return true;
+        return inner.classList.contains('user');
+    }}
+
     switch (msg.type) {{
         case 'status':
             if (msg.state === 'running') {{ statusDot.className = 'status-dot running'; statusText.textContent = '运行中'; btnSend.style.display = 'none'; btnStop.style.display = ''; }}
             else {{ statusDot.className = 'status-dot idle'; statusText.textContent = '就绪'; btnSend.style.display = ''; btnStop.style.display = 'none'; }}
             break;
         case 'text_chunk':
-            var lastMsg = chat.querySelector('.msg-group.ai:last-child');
-            if (!lastMsg) {{
-                var div = document.createElement('div');
-                div.className = 'msg-group ai';
-                div.innerHTML = renderMsg(msg.role || 'project_manager', 'ai', '');
-                chat.appendChild(div);
-                lastMsg = div;
+            {{
+                var htmlContent = escapeHtml(msg.content);
+                var fresh = shouldStartNewAiGroup();
+                if (fresh) {{
+                    var div = document.createElement('div');
+                    div.innerHTML = renderMsg(msg.role || 'project_manager', 'ai', htmlContent);
+                    chat.appendChild(div);
+                }} else {{
+                    var lastMsg = getLastAiGroup();
+                    if (!lastMsg) {{
+                        var div = document.createElement('div');
+                        div.innerHTML = renderMsg(msg.role || 'project_manager', 'ai', '');
+                        chat.appendChild(div);
+                        lastMsg = div.querySelector('.msg-group.ai');
+                    }}
+                    lastMsg.querySelector('.msg-bubble').innerHTML += htmlContent;
+                }}
             }}
-            lastMsg.querySelector('.msg-bubble').innerHTML += escapeHtml(msg.content);
             scrollToBottom();
             break;
         case 'tool_call':
@@ -593,11 +813,18 @@ function handleMessage(msg) {{
             break;
         case 'final_answer':
             if (msg.content) {{
-                var lastAi = chat.querySelector('.msg-group.ai:last-child');
-                if (lastAi) {{
-                    lastAi.querySelector('.msg-bubble').innerHTML = formatContent(msg.content);
+                var fresh = shouldStartNewAiGroup();
+                if (fresh) {{
+                    var div = document.createElement('div');
+                    div.innerHTML = renderMsg(msg.role || 'project_manager', 'ai', formatContent(msg.content));
+                    chat.appendChild(div);
                 }} else {{
-                    addAiMsg(msg.content, msg.role || 'project_manager');
+                    var lastAi = getLastAiGroup();
+                    if (lastAi) {{
+                        lastAi.querySelector('.msg-bubble').innerHTML = formatContent(msg.content);
+                    }} else {{
+                        addAiMsg(msg.content, msg.role || 'project_manager');
+                    }}
                 }}
             }}
             scrollToBottom();
@@ -619,13 +846,52 @@ function handleMessage(msg) {{
             chat.appendChild(div);
             scrollToBottom();
             break;
+        case 'thinking':
+            var tb = document.createElement('div');
+            tb.className = 'thinking-block';
+            var header = document.createElement('div');
+            header.className = 'thinking-header';
+            header.innerHTML = '💭 <span class="thinking-toggle">展开</span>';
+            header.onclick = function() {{
+                var content = this.nextElementSibling;
+                var toggle = this.querySelector('.thinking-toggle');
+                var isHidden = content.style.display === 'none';
+                content.style.display = isHidden ? 'block' : 'none';
+                toggle.textContent = isHidden ? '收起' : '展开';
+            }};
+            tb.appendChild(header);
+            var tc = document.createElement('div');
+            tc.className = 'thinking-content';
+            tc.style.display = 'none';
+            tc.textContent = msg.content;
+            tb.appendChild(tc);
+            // Insert before the last AI group
+            var lastAi = getLastAiGroup();
+            if (lastAi) {{
+                lastAi.parentNode.insertBefore(tb, lastAi);
+            }} else {{
+                chat.appendChild(tb);
+            }}
+            scrollToBottom();
+            break;
         case 'session_switched':
             currentSessionId = msg.session_id;
+            var sidEl = document.getElementById('current-session-id');
+            if (sidEl) sidEl.textContent = 'SID:' + (msg.session_id || '');
             if (msg.messages) {{
                 chat.innerHTML = '';
                 for (var m of msg.messages) {{
-                    if (m.role === 'user') addMsg('user', m.content);
-                    else if (m.role === 'assistant') addMsg('ai', m.content, 'project_manager');
+                    if (m.type) {{
+                        // Rich message: replay through handleMessage
+                        handleMessage(m);
+                    }} else if (m.role === 'user') {{
+                        addMsg('user', m.content);
+                    }} else if (m.role === 'system') {{
+                        /* skip system prompt */
+                    }} else {{
+                        // Legacy format: role/content only
+                        addMsg('ai', m.content, m.role || 'project_manager');
+                    }}
                 }}
             }}
             loadSessions();
@@ -645,13 +911,27 @@ function send() {{
     msgInput.style.height = 'auto';
 
     // Check for user @mention to route to specific role
-    var mentionMatch = text.match(/@(product_manager|architect|developer|code_reviewer|bug_hunter|doc_writer)/);
+    var mentionMatch = text.match(/@(project_manager|product_manager|architect|developer|code_reviewer|bug_hunter|doc_writer)/);
     var targetRole = mentionMatch ? mentionMatch[1] : 'project_manager';
     var content = mentionMatch ? text.replace(mentionMatch[0], '').trim() : text;
 
-    if (ws && ws.readyState === WebSocket.OPEN) {{
-        ws.send(JSON.stringify({{type: 'develop', content: content || text, role: targetRole}}));
+    console.log('send(): ws.readyState=' + (ws ? ws.readyState : 'null') + ' role=' + targetRole + ' content=' + content);
+
+    if (!ws) {{
+        console.error('send(): ws is null, attempting reconnect');
+        connect();
+        addMsg('ai', '连接已断开，正在重连，请稍后重试...', 'project_manager');
+        return;
     }}
+
+    if (ws.readyState !== WebSocket.OPEN) {{
+        console.error('send(): ws not open, readyState=' + ws.readyState);
+        addMsg('ai', 'WebSocket 未连接 (状态:' + ws.readyState + ')，请刷新页面后重试', 'project_manager');
+        return;
+    }}
+
+    ws.send(JSON.stringify({{type: 'develop', content: content || text, role: targetRole}}));
+    console.log('send(): message sent OK');
 }}
 
 function interrupt() {{
@@ -688,7 +968,10 @@ marked.setOptions({{
 }});
 function formatContent(text) {{
     if (!text) return '';
-    try {{ return marked.parse(text); }} catch(e) {{ return escapeHtml(text); }}
+    try {{
+        var html = marked.parse(text);
+        return linkifyFilePaths(html);
+    }} catch(e) {{ return escapeHtml(text); }}
 }}
 
 function escapeHtml(text) {{
@@ -698,8 +981,8 @@ function escapeHtml(text) {{
 }}
 
 function renderMsg(role, className, content) {{
-    var roles = {{'project_manager':{{'av':'PJM','nm':'项目经理','cl':'pjm'}},'product_manager':{{'av':'PM','nm':'产品经理','cl':'pm'}},'architect':{{'av':'AR','nm':'架构师','cl':'arch'}},'developer':{{'av':'DV','nm':'开发者','cl':'dev'}},'code_reviewer':{{'av':'RV','nm':'审查员','cl':'rev'}},'bug_hunter':{{'av':'BH','nm':'Bug猎人','cl':'hunt'}},'doc_writer':{{'av':'DW','nm':'文档编写者','cl':'doc'}}}};
-    var r = roles[role] || {{'av':'AI','nm':role,'cl':'pm'}};
+    var roles = {{'project_manager':{{'av':'PJM','nm':'项目经理','cl':'pjm'}},'product_manager':{{'av':'PDM','nm':'产品经理','cl':'pdm'}},'architect':{{'av':'AR','nm':'架构师','cl':'arch'}},'developer':{{'av':'DV','nm':'开发者','cl':'dev'}},'code_reviewer':{{'av':'RV','nm':'审查员','cl':'rev'}},'bug_hunter':{{'av':'BH','nm':'Bug猎人','cl':'hunt'}},'doc_writer':{{'av':'DW','nm':'文档编写者','cl':'doc'}}}};
+    var r = roles[role] || {{'av':'AI','nm':role,'cl':'pdm'}};
     var html = '<div class="msg-group ' + className + '">';
     html += '<div class="msg-avatar ' + r.cl + '">' + r.av + '</div>';
     html += '<div class="msg-body">';
@@ -782,10 +1065,18 @@ function renderSessions(sessions) {{
         var active = s.id === currentSessionId ? ' active' : '';
         var time = s.updated_at ? s.updated_at.replace('T',' ') : '';
         return '<div class="session-item' + active + '" onclick="switchSession(\\'' + s.id + '\\')">' +
-            '<div class="s-title">' + escapeHtml(s.title || '新对话') + '</div>' +
-            '<div class="s-meta">' + (s.message_count||0) + ' 条消息' + (time ? ' · ' + time : '') + '</div>' +
-            '<div class="s-actions"><a onclick="event.stopPropagation();deleteSession(\\''+s.id+'\\')">删除</a></div></div>';
+            '<div class="s-title">' + escapeHtml(s.title || '新对话') + '<span class="session-id-badge" title="会话ID，点击复制">' + escapeHtml(s.id) + '</span></div>' +
+            '<div class="s-meta">' + (s.message_count||0) + ' 条消息 · ' + escapeHtml(s.role||'') + (time ? ' · ' + time : '') + '</div>' +
+            '<div class="s-actions"><a onclick="event.stopPropagation();deleteSession(\\''+s.id+'\\')">删除</a> <a onclick="event.stopPropagation();copySessionId(\\''+s.id+'\\')">复制ID</a></div></div>';
     }}).join('');
+}}
+
+function copySessionId(sid) {{
+    navigator.clipboard.writeText(sid).then(function() {{
+        alert('会话ID已复制: ' + sid);
+    }}).catch(function() {{
+        prompt('会话ID (手动复制):', sid);
+    }});
 }}
 
 async function switchSession(sid) {{
@@ -798,7 +1089,8 @@ async function switchSession(sid) {{
 async function deleteSession(sid) {{
     if (!confirm('删除此会话？')) return;
     try {{
-        await fetch('/api/sessions/' + sid, {{method:'DELETE'}});
+        var currentProject = document.getElementById('project-select').value || 'default';
+        await fetch('/api/sessions/' + sid + '?project=' + encodeURIComponent(currentProject), {{method:'DELETE'}});
         if (sid === currentSessionId) {{
             currentSessionId = null;
             chat.innerHTML = '<div class=\"welcome\" id=\"welcome\"><h2>HGJ-dev</h2><p>AI 驱动的开发助手</p></div>';
@@ -1004,6 +1296,7 @@ function applySettings(settings) {{
     document.getElementById('s-model-custom').value = settings.model_custom || '';
     document.getElementById('s-base-url').value = settings.base_url || (defaultUrls[settings.provider] || '');
     document.getElementById('s-api-key').value = settings.api_key || '';
+    document.getElementById('s-user-title').value = settings.user_title || '用户';
 }}
 
 document.getElementById('s-provider').addEventListener('change', function() {{
@@ -1019,6 +1312,7 @@ async function saveSettings() {{
         model_custom: document.getElementById('s-model-custom').value.trim(),
         api_key: document.getElementById('s-api-key').value.trim(),
         base_url: document.getElementById('s-base-url').value.trim(),
+        user_title: document.getElementById('s-user-title').value.trim(),
     }};
     try {{
         var r = await fetch('/api/settings', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify(body)}});
@@ -1051,9 +1345,124 @@ document.addEventListener('DOMContentLoaded', function() {{
     if (ACTIVE_TAB === 'projects') loadProjects();
     if (ACTIVE_TAB === 'files') listDir('');
 }});
+
+// ---- File Viewer Modal ----
+var fileModalOverlay = null;
+var fileModalBody = null;
+var fileRawContent = '';
+var fileMdView = false;
+
+function ensureFileModal() {{
+    if (fileModalOverlay) return;
+    fileModalOverlay = document.createElement('div');
+    fileModalOverlay.className = 'file-modal-overlay';
+    fileModalOverlay.onclick = function(e) {{ if (e.target === fileModalOverlay) closeFileViewer(); }};
+    fileModalOverlay.innerHTML = '<div class="file-modal">' +
+        '<div class="file-modal-header">' +
+            '<span class="fm-path" id="fm-path"></span>' +
+            '<span style="flex:1"></span>' +
+            '<button class="btn btn-secondary" id="fm-md-toggle" style="display:none;padding:4px 10px;font-size:11px;margin-right:8px;" onclick="event.stopPropagation();toggleMdView()">Markdown 预览</button>' +
+            '<button class="fm-close" onclick="closeFileViewer()">&times;</button>' +
+        '</div>' +
+        '<div class="file-modal-body loading" id="fm-body">加载中...</div>' +
+        '<div class="file-modal-footer">' +
+            '<span id="fm-info"></span>' +
+            '<span>Esc 关闭</span>' +
+        '</div>' +
+    '</div>';
+    document.body.appendChild(fileModalOverlay);
+    fileModalBody = document.getElementById('fm-body');
+}}
+
+async function openFileViewer(filepath) {{
+    ensureFileModal();
+    document.getElementById('fm-path').textContent = filepath;
+    fileModalBody.className = 'file-modal-body loading';
+    fileModalBody.textContent = '加载中...';
+    fileRawContent = '';
+    fileMdView = false;
+    fileModalOverlay.classList.add('open');
+    try {{
+        var r = await fetch('/api/files/content?path=' + encodeURIComponent(filepath));
+        var data = await r.json();
+        var ext = filepath.replace(/^.*[.]/, '').toLowerCase();
+        var toggleBtn = document.getElementById('fm-md-toggle');
+        if (data.is_binary) {{
+            fileModalBody.className = 'file-modal-body error';
+            fileModalBody.textContent = '[二进制文件，无法预览]';
+            document.getElementById('fm-info').textContent = '';
+            toggleBtn.style.display = 'none';
+        }} else {{
+            fileRawContent = data.content || '';
+            fileModalBody.className = 'file-modal-body';
+            fileModalBody.textContent = fileRawContent || '(空文件)';
+            var lines = (fileRawContent || '').split('\\n').length;
+            var truncated = data.truncated ? ' (仅显示前500行)' : '';
+            document.getElementById('fm-info').textContent = lines + ' 行' + truncated;
+            if (ext === 'md' || ext === 'mdx' || ext === 'markdown') {{
+                toggleBtn.style.display = '';
+                toggleBtn.textContent = 'Markdown 预览';
+            }} else {{
+                toggleBtn.style.display = 'none';
+            }}
+        }}
+    }} catch(e) {{
+        fileModalBody.className = 'file-modal-body error';
+        fileModalBody.textContent = '加载失败: ' + e.message;
+        document.getElementById('fm-info').textContent = '';
+        document.getElementById('fm-md-toggle').style.display = 'none';
+    }}
+}}
+
+function toggleMdView() {{
+    var toggleBtn = document.getElementById('fm-md-toggle');
+    if (!fileRawContent) return;
+    fileMdView = !fileMdView;
+    if (fileMdView) {{
+        toggleBtn.textContent = '原始文本';
+        fileModalBody.className = 'file-modal-body md-rendered';
+        try {{
+            fileModalBody.innerHTML = marked.parse(fileRawContent);
+        }} catch(e) {{
+            fileModalBody.textContent = fileRawContent;
+        }}
+    }} else {{
+        toggleBtn.textContent = 'Markdown 预览';
+        fileModalBody.className = 'file-modal-body';
+        fileModalBody.textContent = fileRawContent;
+    }}
+}}
+
+function closeFileViewer() {{
+    if (fileModalOverlay) fileModalOverlay.classList.remove('open');
+    fileRawContent = '';
+    fileMdView = false;
+}}
+
+document.addEventListener('keydown', function(e) {{
+    if (e.key === 'Escape') closeFileViewer();
+}});
+
+// ---- File path linkifier ----
+function linkifyFilePaths(html) {{
+    // Normalize Windows backslash paths to forward slashes
+    html = html.replace(/\\\\/g, '/');
+
+    var codeExtList = ['py','md','json','js','ts','jsx','tsx','html','css','scss','less','yaml','yml','toml','cfg','ini','txt','rs','go','java','c','cpp','h','hpp','sh','bash','bat','ps1','xml','svg','sql','sqlite','env','lock','gitignore','dockerignore','editorconfig','Makefile','Dockerfile','log','conf','cnf','cfg','ini','prop','properties','gradle','sbt','csproj','vbproj','fsproj','sln','cs','vb','fs','r','rmd','R','Rmd','jl','kt','kts','swift','scala','clj','cljs','edn','ex','exs','erl','hrl','hs','lhs','rb','rake','gemspec','php','phtml','twig','pl','pm','t','lua','vim','zsh','fish','tf','tfvars','proto','thrift','graphql','gql','prisma','vue','svelte','astro','mdx','mjml','njk','hbs','ejs','pug','jade','styl','sass','pcss','postcss','wxss','acss','nss','qss'];
+    var codeExt = '(?:' + codeExtList.join('|') + ')';
+    var re = new RegExp('(?:^|[^a-zA-Z0-9_/.-])((?:~?/|[.]{{0,2}}/|[a-zA-Z]:/|[a-zA-Z0-9_.][a-zA-Z0-9_./-]*/)[a-zA-Z0-9_./:-]*[a-zA-Z0-9_-][.]' + codeExt + '|[a-zA-Z0-9_][a-zA-Z0-9_.-]{{1,40}}[.]' + codeExt + '|[Dd]ockerfile|[Mm]akefile|[Dd]ocker-compose[.]ya?ml)(?=[^a-zA-Z0-9_./-]|$)', 'gi');
+    return html.replace(re, function(match) {{
+        var path = match.replace(/^[^a-zA-Z0-9_/~.]+/, '');
+        if (/^https?:/i.test(path)) return match;
+        var esc = path.replace(/"/g, '&quot;');
+        return match.replace(path, '<a class="file-link" data-filepath="' + esc + '" href="javascript:void(0)" onclick="event.stopPropagation();openFileViewer(this.getAttribute(\\'data-filepath\\'));" title="点击查看: ' + esc + '">' + path + '</a>');
+    }});
+}}
+
 </script>
 </body>
 </html>"""
+
 
 # ============================================================
 # FastAPI App
@@ -1066,8 +1475,17 @@ app = FastAPI(title="HGJ-dev Dashboard", version="0.1.0-dev")
 async def lifespan(app: FastAPI):
     from harnessgenj_dev.web.session_manager import SessionManager
     from harnessgenj_dev.tools.registry import auto_register
+
     auto_register()
     app.state.session_manager = SessionManager()
+    # Initialize knowledge files for all registered roles
+    try:
+        from harnessgenj_dev.memory.role_registry import list_roles, init_role_memory
+        for r in list_roles():
+            if r.get("builtin") or not r.get("knowledge_file"):
+                init_role_memory(r["id"])
+    except Exception:
+        pass
     yield
 
 
@@ -1083,10 +1501,12 @@ _DEFAULT_TEAM_ROLE = "project_manager"
 
 class _ConfigShim:
     """Provides project context to agents. Uses active project path or CWD."""
+
     @property
     def project_path(self) -> str:
         try:
             from harnessgenj_dev.projects import get_active_project
+
             active = get_active_project()
             if active:
                 return active["path"]
@@ -1099,6 +1519,7 @@ class AgentSession:
     def __init__(self, websocket: WebSocket, project: str = "") -> None:
         if not project:
             from harnessgenj_dev.projects import get_active_project
+
             active = get_active_project()
             project = active["name"] if active else "default"
         self.ws = websocket
@@ -1113,6 +1534,84 @@ class AgentSession:
         self._total_input_tokens = 0
         self._total_output_tokens = 0
         self._total_cost_usd = 0.0
+        # Per-role sub-agent sessions for work continuity (Claude Code Agent Teams pattern)
+        self._sub_sessions: dict[str, str] = {}
+
+    def _get_sub_session(self, role: str):
+        """Get or create persistent session for a sub-agent role."""
+        mgr = self._get_session_mgr()
+        if role not in self._sub_sessions:
+            sub = mgr.create_session(self.project + "/sub/" + role, role=role)
+            self._sub_sessions[role] = sub.id
+        return mgr.get_session(self.project + "/sub/" + role, self._sub_sessions[role])
+
+    @staticmethod
+    def _compact_sub_session(history: list[dict], max_keep: int = 12) -> list[dict]:
+        """Claude Code 3-tier compaction for per-agent independent memory.
+
+        Tier 1 (Micro-compact): Truncate tool results older than last 5, keep structure.
+        Tier 2 (Collapse):   Merge consecutive assistant-only messages.
+        Tier 3 (Summarize):  When > max_keep, keep system + last exchange + decision markers.
+        """
+        if len(history) <= max_keep:
+            return list(history)
+
+        # Tier 1: Truncate old tool results (keep last 5)
+        tool_indices = [i for i, m in enumerate(history) if m.get("role") == "tool"]
+        if len(tool_indices) > 5:
+            for idx in tool_indices[:-5]:
+                history[idx] = {
+                    "role": "tool",
+                    "content": f"[tool result cleared: {len(history[idx].get('content', ''))} chars]",
+                    "tool_call_id": history[idx].get("tool_call_id", ""),
+                }
+
+        # Tier 2: Collapse — merge consecutive assistant msgs (preserve tool_calls)
+        collapsed = []
+        i = 0
+        while i < len(history):
+            m = history[i]
+            if m.get("role") == "assistant" and i + 1 < len(history) and history[i + 1].get("role") == "assistant":
+                merged_content = m.get("content", "")
+                merged_tool_calls = m.get("tool_calls", [])
+                j = i + 1
+                while j < len(history) and history[j].get("role") == "assistant":
+                    merged_content += "\n" + history[j].get("content", "")
+                    if not merged_tool_calls:
+                        merged_tool_calls = history[j].get("tool_calls", [])
+                    j += 1
+                collapsed.append({"role": "assistant", "content": merged_content[:3000], "tool_calls": merged_tool_calls})
+                i = j
+            else:
+                collapsed.append(m)
+                i += 1
+
+        # Tier 3: If still over max_keep, keep system + last exchange + their context
+        if len(collapsed) > max_keep:
+            system_msgs = [m for m in collapsed if m.get("role") == "system"]
+            decision_markers = [m for m in collapsed if m.get("role") == "assistant"
+                              and any(kw in m.get("content", "")[:200] for kw in ("##", "✅", "❌", "完成", "结论"))]
+            # Keep last exchange + the assistant message with tool_calls before any tool messages
+            recent = collapsed[-6:]
+            # Ensure we have the preceding assistant for any tool message in recent
+            for idx in range(len(collapsed) - 1, -1, -1):
+                if collapsed[idx].get("role") == "tool":
+                    # Walk backwards to find prior assistant with tool_calls
+                    for jdx in range(idx - 1, max(0, idx - 100), -1):
+                        if collapsed[jdx].get("role") == "assistant" and collapsed[jdx].get("tool_calls"):
+                            if collapsed[jdx] not in recent:
+                                recent.insert(0, collapsed[jdx])
+                            break
+            seen = set()
+            result = []
+            for m in system_msgs + decision_markers[-3:] + recent:
+                key = (m.get("role"), m.get("content", "")[:100], str(m.get("tool_calls", ""))[:50])
+                if key not in seen:
+                    result.append(m)
+                    seen.add(key)
+            return result
+
+        return collapsed
 
     @property
     def conversation_history(self) -> list[dict[str, str]]:
@@ -1138,9 +1637,12 @@ class AgentSession:
         if self._agent is None:
             from harnessgenj_dev.core.agent import Agent
             from harnessgenj_dev.llm.gateway import LLMGateway
+
             gateway = LLMGateway(
-                provider=_get_provider(), model=_get_model(),
-                api_key=_get_api_key(), base_url=_get_base_url() or None,
+                provider=_get_provider(),
+                model=_get_model(),
+                api_key=_get_api_key(),
+                base_url=_get_base_url() or None,
             )
             self._agent = Agent(llm_gateway=gateway, config=_ConfigShim())
         return self._agent
@@ -1197,10 +1699,42 @@ class AgentSession:
             session.project = self.project
             self._get_session_mgr().save(session)
 
+    def _append_and_save(self, role: str, content: str, msg_type: str = "agent_response", role_display: str = "") -> None:
+        """Append a rich message to session history and persist immediately.
+
+        Claude Code pattern: append-only durable state. Every message is saved
+        the moment it's produced, so crashes/restarts never lose data.
+        """
+        session = self._get_session()
+        if not session:
+            return
+        display = role_display or self._ROLE_DISPLAY.get(role, role)
+        session.messages.append({
+            "type": msg_type,
+            "role": role,
+            "role_display": display,
+            "content": content,
+        })
+        session.project = self.project
+        self._get_session_mgr().save(session)
+
     def interrupt(self) -> None:
         self._interrupted = True
         if self._develop_task:
             self._develop_task.cancel()
+
+    async def _send_thinking_if_any(self, agent_or_history, role: str = "") -> None:
+        """Send reasoning_content from agent conversation_history as separate 'thinking' message."""
+        history = agent_or_history.state.conversation_history if hasattr(agent_or_history, 'state') else agent_or_history
+        for msg in reversed(history):
+            rc = msg.get("reasoning_content")
+            if rc and rc.strip():
+                await self.send({
+                    "type": "thinking",
+                    "role": role or msg.get("role", ""),
+                    "content": rc.strip()[:3000],
+                })
+                break
 
     async def send(self, data: dict) -> None:
         try:
@@ -1223,12 +1757,25 @@ class AgentSession:
         """
         from harnessgenj_dev.core.agent import Agent
         from harnessgenj_dev.llm.gateway import LLMGateway
+
         role_display = self._ROLE_DISPLAY.get(role, role)
         await self.send({"type": "agent_dispatch", "role": role, "role_display": role_display, "status": "started"})
         try:
-            sub = Agent(llm_gateway=LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None), config=_ConfigShim())
+            sub = Agent(
+                llm_gateway=LLMGateway(
+                    provider=_get_provider(),
+                    model=_get_model(),
+                    api_key=_get_api_key(),
+                    base_url=_get_base_url() or None,
+                ),
+                config=_ConfigShim(),
+                effort="high",
+            )
+            sub.state.max_iterations = 200
             prompt = (
-                "项目经理请你以 " + role_display + " 身份参与团队分析。请按以下格式输出（用中文）：\n\n"
+                "项目经理请你以 "
+                + role_display
+                + " 身份参与团队分析。请按以下格式输出（用中文）：\n\n"
                 + "## 目标\n[你要达成的具体目标]\n\n"
                 + "## 约束\n[你的假设和边界条件]\n\n"
                 + "## 发现\n[你的分析和发现]\n\n"
@@ -1236,165 +1783,198 @@ class AgentSession:
                 + "## 投票\n[**PASS** 或 **FAIL:理由**]\n"
                 + "- 如果你对前序角色的输出不满意，投FAIL并说明谁需要改进什么\n"
                 + "- 如果你满意所有前序工作，投PASS\n\n"
-                + "=== 上下文 ===\n" + context[:3000] + "\n\n"
+                + "=== 上下文 ===\n"
+                + context[:3000]
+                + "\n\n"
                 + "注意：你只能做你角色范围内的事。不要越权。不能调用其他Agent。"
             )
-            result = await sub.run(prompt, role=role)
-            await self.send({"type": "agent_response", "role": role, "role_display": role_display, "content": result or "(无输出)"})
-            return result or ""
+            # Stream with buffered output for clean display
+            acc = ""
+            buf = ""
+            async for chunk in sub.run_stream(prompt, role=role):
+                acc += chunk
+                buf += chunk
+                if chunk.strip() and ("\n" in chunk or len(buf) > 40):
+                    clean = chunk.strip()
+                    if clean and not clean.startswith("[Executing") and not clean.startswith("```tool"):
+                        await self.send({"type": "text_chunk", "role": role, "content": chunk})
+                    buf = ""
+            await self._send_thinking_if_any(sub, role)
+            await self.send(
+                {"type": "final_answer", "role": role, "content": acc.strip() or "(无输出)"}
+            )
+            return acc.strip() or ""
         except Exception as exc:
-            await self.send({"type": "agent_response", "role": role, "role_display": role_display, "content": "错误: " + str(exc)})
+            await self.send(
+                {"type": "agent_response", "role": role, "role_display": role_display, "content": "错误: " + str(exc)}
+            )
             return ""
 
     async def _run_sub_agent(self, role: str, context: str, silent: bool = False) -> str:
         """Run a sub-agent with given role and context. Returns response text."""
         from harnessgenj_dev.core.agent import Agent
         from harnessgenj_dev.llm.gateway import LLMGateway
+
         if not silent:
-            await self.send({"type": "agent_dispatch", "role": role, "role_display": self._ROLE_DISPLAY.get(role, role), "status": "started"})
+            await self.send(
+                {
+                    "type": "agent_dispatch",
+                    "role": role,
+                    "role_display": self._ROLE_DISPLAY.get(role, role),
+                    "status": "started",
+                }
+            )
         try:
-            sub = Agent(llm_gateway=LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None), config=_ConfigShim())
-            task = "项目经理请你分析以下内容，请用中文回答：\n\n" + context[:2000] + "\n\n你是谁：" + self._ROLE_DISPLAY.get(role, role) + "\n请从你的专业角度分析，用中文回复。"
-            result = await sub.run(task, role=role)
+            sub = Agent(
+                llm_gateway=LLMGateway(
+                    provider=_get_provider(),
+                    model=_get_model(),
+                    api_key=_get_api_key(),
+                    base_url=_get_base_url() or None,
+                ),
+                config=_ConfigShim(),
+                effort="high",
+            )
+            sub.state.max_iterations = 200
+            # Load per-agent session, keep only essential context
+            sub_session = self._get_sub_session(role)
+            if sub_session and sub_session.messages:
+                essential = [m for m in sub_session.messages if m.get("role") == "system"]
+                if len(sub_session.messages) >= 2:
+                    essential += sub_session.messages[-2:]
+                sub.state.conversation_history = essential
+
+                # Inject knowledge file with initialization rules
+                _kf_context = ""
+                try:
+                    from ..memory.role_registry import get_role
+                    _rc = get_role(role)
+                    if _rc and _rc.get("knowledge_file"):
+                        _kf_path = _rc["knowledge_file"]
+                        _kf_context = (
+                            "## 知识库与初始化规则\n"
+                            "1. 先 read_file(" + _kf_path + ") 检查知识库是否已初始化\n"
+                            "2. 如果内容为空（仅为模板占位符），说明是首次使用："
+                            "用 list_directory 看项目结构，read_file 读 PROJECT.md，"
+                            "将项目信息写入 " + _kf_path + "，然后开始执行任务\n"
+                            "3. 如果已有内容，直接基于上下文开始工作\n"
+                            "4. 任务完成后 write_file 更新 " + _kf_path + "\n\n"
+                        )
+                except Exception:
+                    pass
+
+            task = (
+                "你是" + self._ROLE_DISPLAY.get(role, role) + "。EXECUTE the task.\n"
+                "CRITICAL: You have file/code tools. CALL them to do the work.\n"
+                "Do NOT just describe — actually use the tools.\n\n"
+                + _kf_context + context[:2000]
+            )
+            # Stream with buffered output for clean display
+            acc = ""
+            buf = ""
+            async for chunk in sub.run_stream(task, role=role):
+                acc += chunk
+                if not silent:
+                    buf += chunk
+                    if chunk.strip() and ("\n" in chunk or len(buf) > 40):
+                        clean = chunk.strip()
+                        if clean and not clean.startswith("[Executing") and not clean.startswith("```tool"):
+                            await self.send({"type": "text_chunk", "role": role, "content": chunk})
+                        buf = ""
+            # Claude Code 3-tier compaction for per-agent memory
+            if sub_session:
+                sub_session.messages = self._compact_sub_session(list(sub.state.conversation_history))
+                self._get_session_mgr().save(sub_session)
             if not silent:
-                await self.send({"type": "agent_response", "role": role, "role_display": self._ROLE_DISPLAY.get(role, role), "content": result or "(无输出)"})
-            return result or ""
+                await self.send(
+                    {
+                        "type": "final_answer",
+                        "role": role,
+                        "content": acc.strip() or "(无输出)",
+                    }
+                )
+            return acc.strip() or ""
         except Exception as exc:
             if not silent:
-                await self.send({"type": "agent_response", "role": role, "role_display": self._ROLE_DISPLAY.get(role, role), "content": "错误：" + str(exc)})
+                await self.send(
+                    {
+                        "type": "agent_response",
+                        "role": role,
+                        "role_display": self._ROLE_DISPLAY.get(role, role),
+                        "content": "错误：" + str(exc),
+                    }
+                )
             return ""
 
     async def run_develop(self, content: str) -> str | None:
         logger.info("run_develop START: role=%s content=%.50s", self.role, content)
-        agent = self._ensure_agent()
+        # Persist user message BEFORE any processing (quick_exec or LLM)
         session = self._get_session()
         if not session.messages:
             system_prompt = self._build_system_prompt(self.role)
             session.messages = [{"role": "system", "content": system_prompt}]
         session.messages.append({"role": "user", "content": content})
-        agent.state.conversation_history = list(session.messages)
+        self.save_session()
+
+        agent = self._ensure_agent()
+        # Build fresh system prompt so user_title is always current
+        fresh_system = self._build_system_prompt(self.role)
+        _OPENAI_ROLES = {"system", "user", "assistant", "tool"}
+        agent.state.conversation_history = [
+            {"role": "system", "content": fresh_system}
+            if m.get("role") == "system"
+            else {**m, "role": m["role"] if m["role"] in _OPENAI_ROLES else "assistant"}
+            for m in session.messages
+        ]
         await self._send_status("running")
         accumulated = ""
         try:
-            # Immediate feedback so user knows agent is working
-            await self.send({"type": "text_chunk", "content": "⏳ 正在分析...\n", "role": self.role})
-            # Reduce max iterations for initial response (orchestrator dispatches for deep analysis)
-            agent.state.max_iterations = min(agent.state.max_iterations, 3)  # fast response for simple queries
-            result = await agent.run(content, role=self.role)
-            accumulated = result or ""
+            # Stream PM output so user sees real-time progress
+            if self.role == "project_manager":
+                agent.state.max_iterations = 200
+            else:
+                agent.state.max_iterations = min(agent.state.max_iterations, 3)
+            accumulated = ""
+            try:
+                async for chunk in agent.run_stream(content, role=self.role):
+                    accumulated += chunk
+                    if chunk.strip():
+                        await self.send({"type": "text_chunk", "content": chunk, "role": self.role})
+            except Exception as exc:
+                logger.exception("PM run_stream failed: %s", exc)
+                if not accumulated:
+                    accumulated = "分析出错: " + str(exc)[:200]
+            await self._send_thinking_if_any(agent, self.role)
+            accumulated = accumulated.strip()
             if accumulated:
-                session.messages.append({"role": "assistant", "content": accumulated})
+                self._append_and_save(self.role, accumulated, "final_answer")
                 await self.send({"type": "text_chunk", "content": accumulated, "role": self.role})
             if not self._interrupted:
-                await self.send({"type": "final_answer", "content": accumulated, "iterations": agent.state.iteration_count, "role": self.role})
+                await self.send(
+                    {
+                        "type": "final_answer",
+                        "content": accumulated,
+                        "iterations": agent.state.iteration_count,
+                        "role": self.role,
+                    }
+                )
 
-            # 智能调度：只检查用户消息是否包含项目关键词
-            needs_team = False
+            # 纯 @mention 调度：PM 自主决策是否调度、调度谁、调度顺序
             if self.role == "project_manager" and accumulated and not self._interrupted:
-                team_kw = ["开发", "设计", "架构", "实现", "审查", "重构", "优化",
-                           "文档", "需要团队", "组织大家", "讨论方案", "规划", "制定"]
-                needs_team = any(kw in content for kw in team_kw)
-
-            if self.role == "project_manager" and accumulated and not self._interrupted and needs_team:
-                from ..llm.gateway import LLMGateway
-                import re
-                gw = LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None)
-                TEAM = ["architect", "developer", "code_reviewer", "bug_hunter", "doc_writer"]
-                results = {}
-                base_context = "## 用户请求\n" + content + "\n\n## 项目经理分析\n" + accumulated[:2000]
-                max_passes = 3
-
-                for pn in range(1, max_passes + 1):
-                    if self._interrupted: break
-                    needs_redo = set()
-                    round_context = base_context
-
-                    await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": "## 第 " + str(pn) + " 轮讨论开始"})
-
-                    # 按顺序调度 A→B→C→D
-                    for role in TEAM:
-                        if self._interrupted: break
-                        # 跳过不需要重做的Agent（除了第一轮）
-                        if pn > 1 and role not in needs_redo and role in results:
-                            continue
-
-                        role_display = self._ROLE_DISPLAY.get(role, role)
-
-                        # PM intro
-                        intro_prompt = "你是项目经理。第" + str(pn) + "轮。请用中文一句话说明为什么现在要调度" + role_display + "。如果有前面角色的建议，请一并说明。"
-                        intro_resp = await gw.chat(messages=[{"role": "user", "content": intro_prompt}], model=_get_model())
-                        await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": intro_resp.content or ("调度" + role_display + "...")})
-
-                        # 构建上下文：基础内容 + 所有之前的Agent输出
-                        ctx = round_context
-                        for r in TEAM:
-                            if r in results:
-                                ctx += "\n\n## " + self._ROLE_DISPLAY.get(r, r) + " (最近)\n" + results.get(r, "")[:1500]
-
-                        # Run agent
-                        agent_output = await self._run_sub_agent(role, ctx, silent=False)
-                        results[role] = agent_output
-                        round_context += "\n\n## " + role_display + " 输出\n" + agent_output[:2000]
-
-                    # 轮次结束：PM 基于结构化输出评估（手递手合同模式）
-                    if self._interrupted: break
-                    review_prompt = "你是项目经理。第" + str(pn) + "轮团队讨论已完成。\n\n"
-                    review_prompt += "## 各角色投票汇总\n"
-                    pass_cnt = 0
-                    fail_items = []
-                    for r in TEAM:
-                        if r in results:
-                            out = results.get(r, "")
-                            if "## 投票" in out:
-                                vote_section = out[out.find("## 投票"):][:200]
-                            else:
-                                vote_section = "(未明确投票)"
-                            if "PASS" in vote_section.upper() and "FAIL" not in vote_section.upper():
-                                pass_cnt += 1
-                            else:
-                                fail_items.append(r)
-                            review_prompt += "- " + self._ROLE_DISPLAY.get(r, r) + ": " + vote_section.strip()[:120] + "\n"
-                    review_prompt += "\n## PM 决策指令\n"
-                    review_prompt += "通过数: " + str(pass_cnt) + "/" + str(len(TEAM))
-                    if fail_items:
-                        review_prompt += "\n需要重做: " + ", ".join(fail_items)
-                        review_prompt += "\n\n请用一行回复: REDO:" + fail_items[0]
-                    else:
-                        review_prompt += "\n\n请用一行回复: PASS"
-
-                    review_resp = await gw.chat(messages=[{"role": "user", "content": review_prompt}], model=_get_model())
-                    decision = (review_resp.content or "PASS").strip().upper()
-
-                    if "REDO:" in decision:
-                        # Extract role to redo
-                        redos = re.findall(r'REDO:(\w+)', decision)
-                        for rd in redos:
-                            if rd in TEAM:
-                                needs_redo.add(rd)
-                        if needs_redo:
-                            redo_names = ", ".join(self._ROLE_DISPLAY.get(r, r) for r in needs_redo)
-                            await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": "## 需要回退优化\n" + redo_names + " 需要重新执行。第" + str(pn + 1) + "轮将聚焦这些角色。"})
-                            base_context = round_context  # pass full context to next round
-                            continue
-                    # PASS or no clear redo → complete
-                    break
-
-                # PM final summary (mandatory)
-                raw = ""
-                for r in TEAM:
-                    if r in results:
-                        raw += "### " + self._ROLE_DISPLAY.get(r, r) + "\n" + results.get(r, "")[:1000] + "\n\n"
-                        session.messages.append({"role": "assistant", "content": "[" + self._ROLE_DISPLAY.get(r, r) + "]: " + results.get(r, "")[:500]})
-                final_prompt = "你是项目经理。团队" + str(pn) + "轮讨论已完成。\n用户请求：\n" + content[:1000] + "\n\n## 团队结论\n" + raw + "\n请给用户最终回复：总结讨论过程、关键决策、下一步行动。用中文，简洁专业。"
-                sr = await gw.chat(messages=[{"role": "user", "content": final_prompt}], model=_get_model())
-                final_summary = sr.content or "团队分析完成。"
-                session.messages.append({"role": "assistant", "content": "[PJM Final]: " + final_summary[:1000]})
-                await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": final_summary})
+                mention_result = await self._dispatch_mentions(accumulated, content)
+                if mention_result:
+                    self._append_and_save("project_manager", mention_result, "agent_response")
+                    await self.send({
+                        "type": "agent_response",
+                        "role": "project_manager",
+                        "role_display": "项目经理",
+                        "content": mention_result,
+                    })
 
             return accumulated
         except asyncio.CancelledError:
             if accumulated:
-                session.messages.append({"role": "assistant", "content": accumulated})
+                self._append_and_save(self.role, accumulated, "final_answer")
                 await self.send({"type": "final_answer", "content": accumulated + "\n[已取消]", "role": self.role})
             raise
         except Exception as exc:
@@ -1404,17 +1984,24 @@ class AgentSession:
             await self._send_status("idle")
             self._interrupted = False
 
-    _ROLE_DISPLAY = {
-        "project_manager": "项目经理",
-        "product_manager": "产品经理",
-        "architect": "架构师",
-        "developer": "开发者",
-        "code_reviewer": "代码审查员",
-        "bug_hunter": "Bug猎人",
-        "doc_writer": "文档编写者",
-    }
+    @property
+    def _ROLE_DISPLAY(self) -> dict[str, str]:
+        """Dynamic role display names from registry."""
+        try:
+            from ..memory.role_registry import list_roles
+            roles = list_roles()
+            return {r["id"]: r.get("display_name", r["id"]) for r in roles}
+        except Exception:
+            return {
+                "project_manager": "项目经理",
+                "product_manager": "产品经理",
+                "architect": "架构师",
+                "developer": "开发者",
+                "code_reviewer": "代码审查员",
+                "bug_hunter": "Bug猎人",
+                "doc_writer": "文档编写者",
+            }
 
-        
     async def _dispatch_mentions(self, pm_text: str, user_request: str) -> str:
         """PM dispatches @mentioned agents, collects results, synthesizes summary.
         Only PM dispatches; agents report findings back to PM.
@@ -1423,7 +2010,26 @@ class AgentSession:
         from harnessgenj_dev.core.agent import Agent
         from harnessgenj_dev.llm.gateway import LLMGateway
 
-        mentions = re.findall(r'@(architect|developer|code_reviewer|bug_hunter|doc_writer)', pm_text)
+        session = self._get_session()
+
+        # Build dynamic mention patterns from role registry
+        from ..memory.role_registry import list_roles
+        all_roles = list_roles()
+        dispatch_roles = [r for r in all_roles if not r.get("is_coordinator")]
+        # @mention pattern: match all registered role IDs
+        role_ids = "|".join(r["id"] for r in dispatch_roles)
+        mentions = re.findall(r"@(" + role_ids + r")", pm_text) if role_ids else []
+        if not mentions:
+            # Chinese-style dispatch: match display names
+            for r in dispatch_roles:
+                dn = r.get("display_name", "")
+                if dn and dn in pm_text:
+                    mentions.append(r["id"])
+        # Check for team review request
+        if "@review" in pm_text.replace("@review", "@review") or "团队评审" in pm_text or "投票" in pm_text:
+            logger.info("_dispatch_mentions: PM requested team review via @review")
+            return await self._run_team_review(user_request, pm_text)
+
         if not mentions:
             return ""
 
@@ -1439,62 +2045,289 @@ class AgentSession:
 
             try:
                 sub_agent = Agent(
-                    llm_gateway=LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None),
+                    llm_gateway=LLMGateway(
+                        provider=_get_provider(),
+                        model=_get_model(),
+                        api_key=_get_api_key(),
+                        base_url=_get_base_url() or None,
+                    ),
                     config=_ConfigShim(),
+                    effort="high",
                 )
+                sub_agent.state.max_iterations = 200
+                # Load per-agent persistent session (JVM thread-local memory pattern)
+                sub_session = self._get_sub_session(role)
+                if sub_session and sub_session.messages:
+                    # Only load system prompt + last exchange, not full history
+                    essential = [m for m in sub_session.messages if m.get("role") in ("system",)]
+                    if len(sub_session.messages) >= 2:
+                        essential.append(sub_session.messages[-2])
+                        essential.append(sub_session.messages[-1])
+                    sub_agent.state.conversation_history = essential
+                    logger.info("_dispatch_mentions: loaded %d essential msgs for %s (from %d total)",
+                               len(essential), role, len(sub_session.messages))
+
                 ctx_parts = [
-                    "## User Original Request\n" + user_request[:1500],
-                    "## Product Manager Analysis\n" + pm_text[:2000],
+                    "## User Request\n" + user_request[:1500],
+                    "## PM Instructions\n" + pm_text[:2000],
                 ]
                 if agent_results:
                     prev = "\n".join("[" + r + "] " + agent_results[r][:800] for r in agent_results)
-                    ctx_parts.append("## Previous Agent Findings\n" + prev)
+                    ctx_parts.append("## Other Agents' Output\n" + prev)
 
+
+                # Inject knowledge file with initialization rules (progressive disclosure)
+                try:
+                    from ..memory.role_registry import get_role
+                    _rc = get_role(role)
+                    if _rc and _rc.get("knowledge_file"):
+                        kf = _rc["knowledge_file"]
+                        init_rules = (
+                            f"## 知识库与初始化规则\n"
+                            f"1. 先 read_file({kf}) 检查知识库是否已初始化\n"
+                            f"2. 如果知识库为空（只有标题没有内容），说明是首次使用：\n"
+                            f"   a. 用 list_directory 查看项目结构\n"
+                            f"   b. 用 read_file 读取 PROJECT.md 了解项目\n"
+                            f"   c. 将了解到的项目信息写入 {kf}\n"
+                            f"   d. 然后开始执行本次任务\n"
+                            f"3. 如果知识库已有内容，直接基于已有上下文开始工作\n"
+                            f"4. 任务完成后 write_file 更新 {kf}，记录完成的工作和关键决策"
+                        )
+                        ctx_parts.insert(0, init_rules)
+                except Exception:
+                    pass
                 task_prompt = (
-                    "You are the " + role_display + ". PM needs your expertise.\n\n"
-                    "Complete your part based on the context. Focus ONLY on your role.\n"
-                    "Do NOT assign tasks to other agents. Report back to PM.\n\n"
+                    "You are the " + role_display + ". EXECUTE the task, don't just describe it.\n\n"
+                    "CRITICAL: You have tools (write_file, edit_file, run_command, etc). "
+                    "You MUST call these tools to actually DO the work.\n"
+                    "Example: to create a file, CALL write_file. To edit, CALL edit_file.\n"
+                    "DO NOT just say you will do it — actually CALL the tool.\n\n"
+                    "Focus ONLY on your role. Do NOT dispatch other agents.\n"
+                    "When you have COMPLETED all your work (all files written, all changes made), "
+                    "end with: ✅ DONE\n"
+                    "If the work is NOT complete, end with what remains to be done.\n\n"
                     + "\n".join(ctx_parts)
                 )
-                sub_result = await sub_agent.run(task_prompt, role=role)
+                # PM-supervised loop: dispatch → review → done/redo
+                sub_result = ""
+                for _dispatch_try in range(5):  # safety limit, normally breaks on DONE
+                    # Stream sub-agent
+                    sub_accumulated = ""
+                    output_buffer = ""
+                    async for chunk in sub_agent.run_stream(task_prompt, role=role):
+                        sub_accumulated += chunk
+                        output_buffer += chunk
+                        if chunk.strip() and ("\n" in chunk or len(output_buffer) > 40):
+                            clean = chunk.strip()
+                            if clean and not clean.startswith("[Executing") and not clean.startswith("```tool"):
+                                await self.send({"type": "text_chunk", "role": role, "content": chunk})
+                            output_buffer = ""
+                    await self._send_thinking_if_any(sub_agent, role)
+                    sub_result = sub_accumulated.strip()
+                    if not sub_result:
+                        sub_result = "(无输出)"
+                        # Re-run if empty — agent may have stalled
+                        if _dispatch_try < 2:
+                            await self.send({"type": "text_chunk", "role": role, "content": "[重新调度: 该角色上次无输出]\n"})
+                            task_prompt += "\n\n[PM反馈: 你上一次没有输出任何内容。这次请直接调用工具开始工作。]"
+                            continue
+                    # PM checks: is work actually done?
+                    confirm_prompt = (
+                        "## 原任务\n" + user_request[:500]
+                        + "\n\n## " + role_display + " 输出\n" + sub_result[:1200]
+                        + "\n\n作为项目经理，严格判断该角色的工作是否真正完成？\n"
+                        + "考虑是否有实际的文件创建/修改证据。\n"
+                        + "回复 DONE 或 REDO:具体意见。"
+                    )
+                    try:
+                        confirm_resp = await asyncio.wait_for(
+                            LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None).chat(
+                                messages=[{"role": "user", "content": confirm_prompt}], model=_get_model()
+                            ),
+                            timeout=60,
+                        )
+                        decision = (confirm_resp.content or "").strip().upper()
+                    except Exception:
+                        decision = "DONE"
+                    if decision == "DONE" or (decision.startswith("DONE") and "REDO" not in decision):
+                        await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": role_display + " ✅ 工作完成。"})
+                        break
+                    else:
+                        correction = confirm_resp.content.replace("REDO", "").replace(":", "").strip() if confirm_resp and confirm_resp.content else "请继续工作"
+                        await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": role_display + " 需要继续: " + correction[:300]})
+                        task_prompt += "\n\n## PM反馈\n" + correction[:500]
+                # Compact and save
                 agent_results[role] = sub_result
-                await self.send({"type": "agent_response", "role": role, "role_display": role_display, "content": sub_result})
+                if sub_session:
+                    full_history = list(sub_agent.state.conversation_history)
+                    sub_session.messages = self._compact_sub_session(full_history)
+                    self._get_session_mgr().save(sub_session)
+                self._append_and_save(role, sub_result[:500], "final_answer")
+            except asyncio.TimeoutError:
+                logger.warning("_dispatch_mentions: %s timed out after 180s", role)
+                await self.send({
+                    "type": "agent_response", "role": role, "role_display": role_display,
+                    "content": "\u8d85\u65f6: " + role_display + " \u6267\u884c\u8d85\u8fc7 90 \u79d2\uff0c\u5df2\u8df3\u8fc7\u3002",
+                })
+                agent_results[role] = "(timeout)"
             except Exception as exc:
-                await self.send({"type": "agent_response", "role": role, "role_display": role_display, "content": "\u9519\u8bef: " + str(exc)})
+                logger.exception("_dispatch_mentions: %s failed - %s", role, exc)
+                await self.send({
+                    "type": "agent_response", "role": role, "role_display": role_display,
+                    "content": "\u9519\u8bef: " + str(exc),
+                })
                 agent_results[role] = "(error)"
 
         if not agent_results:
             return ""
 
-                # PM ALWAYS synthesizes final summary (mandatory step)
-        await self.send({"type": "agent_dispatch", "role": "product_manager", "role_display": "产品经理", "status": "started"})
+            # PJM synthesizes final summary (mandatory step)
+        await self.send(
+            {"type": "agent_dispatch", "role": "project_manager", "role_display": "项目经理", "status": "started"}
+        )
         try:
             from ..llm.gateway import LLMGateway
-            gw = LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None)
+
+            gw = LLMGateway(
+                provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None
+            )
             rlines = []
             for r in agent_results:
                 rlines.append("### " + self._ROLE_DISPLAY.get(r, r) + " | " + agent_results[r][:1500])
             body = "## Project Update\n## User Request\n" + user_request[:1000]
             if rlines:
                 body += "\n\n" + chr(10).join(rlines)
-            body += "\n\nSummarize what was accomplished, key outcomes, next steps."
-            resp = await gw.chat(messages=[{"role": "user", "content": body}], model=_get_model())
-            return resp.content or "Team work complete."
+            body += "\n\n作为项目经理，请客观总结。只报告有实际证据的工作（文件创建、代码编写、测试通过等）。"
+            body += "如果某些角色的输出只是计划或空话而没有实际产出，请如实说明该角色未完成任务。"
+            logger.info("_dispatch_mentions: synthesizing with gw.chat, body length=%d", len(body))
+            resp = await asyncio.wait_for(
+                gw.chat(messages=[{"role": "user", "content": body}], model=_get_model()),
+                timeout=180,
+            )
+            logger.info("_dispatch_mentions: synthesis complete")
+            return resp.content or "团队工作完成。"
+        except asyncio.TimeoutError:
+            logger.warning("_dispatch_mentions: synthesis timed out after 180s")
+            fb = "## 团队工作完成 (合成超时)\n\n"
+            for r in agent_results:
+                fb += "- **" + self._ROLE_DISPLAY.get(r, r) + "**: 已完成\n"
+            return fb
         except Exception:
+            logger.exception("_dispatch_mentions: synthesis failed")
             fb = "## 团队工作完成\n\n"
             for r in agent_results:
                 fb += "- **" + self._ROLE_DISPLAY.get(r, r) + "**: 已完成\n"
             return fb
 
+    async def _run_team_review(self, user_request: str, pm_analysis: str) -> str:
+        """Multi-round team review with vote evaluation.
+        PM triggers this via @review when decisions need team input.
+        """
+        from ..llm.gateway import LLMGateway
+        from ..memory.role_registry import get_dispatch_targets
+        import re
+
+        logger.info("_run_team_review: starting for request=%.50s", user_request)
+        await self.send({
+            "type": "agent_response", "role": "project_manager", "role_display": "项目经理",
+            "content": "📋 项目经理发起团队多轮评审...",
+        })
+
+        gw = LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None)
+        TEAM = get_dispatch_targets() or ["architect", "developer", "code_reviewer", "bug_hunter", "doc_writer"]
+        results = {}
+        base_context = "## 用户请求\n" + user_request[:1500] + "\n\n## 项目经理分析\n" + pm_analysis[:2000]
+        max_passes = 3
+
+        for pn in range(1, max_passes + 1):
+            if self._interrupted: break
+            needs_redo = set()
+            round_context = base_context
+            await self.send({
+                "type": "agent_response", "role": "project_manager", "role_display": "项目经理",
+                "content": "## 第 " + str(pn) + " 轮评审开始",
+            })
+
+            for role in TEAM:
+                if self._interrupted: break
+                if pn > 1 and role not in needs_redo and role in results:
+                    continue
+                role_display = self._ROLE_DISPLAY.get(role, role)
+                ctx = round_context
+                for r in TEAM:
+                    if r in results:
+                        ctx += "\n\n## " + self._ROLE_DISPLAY.get(r, r) + " (最近)\n" + results.get(r, "")[:1500]
+                agent_output = await self._run_sub_agent(role, ctx, silent=False)
+                results[role] = agent_output
+                round_context += "\n\n## " + role_display + " 输出\n" + agent_output[:2000]
+
+            if self._interrupted: break
+            review_prompt = "你是项目经理。第" + str(pn) + "轮团队评审已完成。\n\n## 各角色投票汇总\n"
+            pass_cnt = 0; fail_items = []
+            for r in TEAM:
+                if r in results:
+                    out = results.get(r, "")
+                    vote_section = out[out.find("## 投票"):][:200] if "## 投票" in out else "(未明确投票)"
+                    if "PASS" in vote_section.upper() and "FAIL" not in vote_section.upper():
+                        pass_cnt += 1
+                    else:
+                        fail_items.append(r)
+                    review_prompt += "- " + self._ROLE_DISPLAY.get(r, r) + ": " + vote_section.strip()[:120] + "\n"
+            review_prompt += "\n通过数: " + str(pass_cnt) + "/" + str(len(TEAM))
+            review_prompt += "\n请用一行回复: PASS 或 REDO:角色ID"
+
+            try:
+                review_resp = await asyncio.wait_for(
+                    gw.chat(messages=[{"role": "user", "content": review_prompt}], model=_get_model()), timeout=30)
+                decision = (review_resp.content or "PASS").strip().upper()
+            except asyncio.TimeoutError:
+                decision = "PASS"
+
+            if "REDO:" in decision:
+                redos = re.findall(r"REDO:(\w+)", decision)
+                for rd in redos:
+                    if rd in TEAM: needs_redo.add(rd)
+                if needs_redo:
+                    await self.send({
+                        "type": "agent_response", "role": "project_manager", "role_display": "项目经理",
+                        "content": "## 需要回退\n" + ", ".join(self._ROLE_DISPLAY.get(r, r) for r in needs_redo) + " 需要重新执行。第" + str(pn + 1) + "轮。",
+                    })
+                    base_context = round_context
+                    continue
+            break
+
+        # Final summary
+        raw = ""
+        for r in TEAM:
+            if r in results:
+                raw += "### " + self._ROLE_DISPLAY.get(r, r) + "\n" + results.get(r, "")[:800] + "\n\n"
+        final_prompt = (
+            "你是项目经理。团队" + str(pn) + "轮评审已完成。\n用户请求：\n" + user_request[:500]
+            + "\n\n## 团队结论\n" + raw[:3000]
+            + "\n总结讨论过程、关键决策、下一步行动。用中文，简洁专业。"
+        )
+        try:
+            sr = await asyncio.wait_for(
+                gw.chat(messages=[{"role": "user", "content": final_prompt}], model=_get_model()), timeout=120)
+            return sr.content or "团队评审完成。"
+        except (asyncio.TimeoutError, Exception) as _e:
+            return "## 团队评审完成\n\n各角色已完成评审。" + raw[:1000]
+
     async def run_develop_oneshot(self, content: str) -> dict[str, Any]:
         from harnessgenj_dev.core.agent import Agent
         from harnessgenj_dev.llm.gateway import LLMGateway
         from harnessgenj_dev.tools.registry import auto_register
+
         auto_register()
-        agent = Agent(llm_gateway=LLMGateway(
-            provider=_get_provider(), model=_get_model(),
-            api_key=_get_api_key(), base_url=_get_base_url() or None,
-        ), config=_ConfigShim())
+        agent = Agent(
+            llm_gateway=LLMGateway(
+                provider=_get_provider(),
+                model=_get_model(),
+                api_key=_get_api_key(),
+                base_url=_get_base_url() or None,
+            ),
+            config=_ConfigShim(),
+        )
         try:
             result = await agent.run(content, role="developer")
             return {"content": result, "role": "developer"}
@@ -1505,6 +2338,7 @@ class AgentSession:
 # ============================================================
 # Connection Manager
 # ============================================================
+
 
 class ConnectionManager:
     def __init__(self):
@@ -1544,6 +2378,7 @@ async def dashboard():
 @app.get("/favicon.ico")
 async def favicon():
     from fastapi.responses import Response
+
     return Response(status_code=204)
 
 
@@ -1574,7 +2409,9 @@ async def websocket_endpoint(websocket: WebSocket):
     if not session:
         return
     await session.ensure_session()
-    await session.send({"type": "session_switched", "session_id": session._session_id, "messages": session.conversation_history})
+    await session.send(
+        {"type": "session_switched", "session_id": session._session_id, "messages": session.conversation_history}
+    )
 
     try:
         while True:
@@ -1587,6 +2424,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 if role:
                     session.role = role
                 if content:
+                    # Cancel any previous unfinished task to avoid concurrent session writes
+                    prev_task = getattr(session, "_develop_task", None)
+                    if prev_task and not prev_task.done():
+                        logger.info("Cancelling previous _run_and_save task")
+                        prev_task.cancel()
                     # Don't await task — let message loop stay responsive
                     async def _run_and_save():
                         logger.info("_run_and_save START: content=%.50s", content)
@@ -1606,6 +2448,7 @@ async def websocket_endpoint(websocket: WebSocket):
                                 session.save_session()
                             except Exception:
                                 pass
+
                     task = asyncio.create_task(_run_and_save())
                     session._develop_task = task
             elif msg_type == "interrupt":
@@ -1617,7 +2460,14 @@ async def websocket_endpoint(websocket: WebSocket):
             elif msg_type == "session_switch":
                 sid = data.get("session_id", "")
                 if session.switch_session(sid):
-                    await session.send({"type": "session_switched", "session_id": sid, "messages": session.conversation_history, "role": session.role})
+                    await session.send(
+                        {
+                            "type": "session_switched",
+                            "session_id": sid,
+                            "messages": session.conversation_history,
+                            "role": session.role,
+                        }
+                    )
                 else:
                     await session.send({"type": "error", "message": f"Session not found: {sid}"})
             elif msg_type == "session_list":
@@ -1691,14 +2541,15 @@ async def api_test_settings():
         return {"ok": False, "error": "No API key configured"}
     try:
         from harnessgenj_dev.llm.gateway import LLMGateway
+
         gateway = LLMGateway(
-            provider=provider, model=model,
-            api_key=api_key, base_url=base_url or None,
+            provider=provider,
+            model=model,
+            api_key=api_key,
+            base_url=base_url or None,
             max_retries=0,
         )
-        response = await gateway.chat(
-            messages=[{"role": "user", "content": "Say OK in one word."}]
-        )
+        response = await gateway.chat(messages=[{"role": "user", "content": "Say OK in one word."}])
         return {"ok": True, "model": model, "provider": provider, "response": response.content}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:200]}
@@ -1716,12 +2567,27 @@ async def api_develop(body: dict[str, str]):
 
 def _safe_path(path: str) -> Path:
     global _file_root, _file_root_set
-    if _file_root_set and not Path(path).is_absolute():
-        resolved = (_file_root / path).resolve()
+    # Resolve relative paths against active project root, not CWD
+    if not Path(path).is_absolute():
+        root = None
+        if _file_root_set:
+            root = _file_root
+        else:
+            try:
+                from harnessgenj_dev.projects import get_active_project
+                active = get_active_project()
+                if active and active.get("path"):
+                    root = Path(active["path"])
+            except Exception:
+                pass
+        if root:
+            resolved = (root / path).resolve()
+        else:
+            resolved = Path(path).resolve()
     else:
         resolved = Path(path).resolve()
     if not resolved.exists():
-        raise HTTPException(404, "Path not found")
+        raise HTTPException(404, f"Path not found: {resolved}")
     if _file_root_set:
         try:
             resolved.relative_to(_file_root)
@@ -1737,13 +2603,15 @@ async def api_list_files(path: str = Query(".")):
         entries = []
         for child in sorted(target.iterdir()):
             try:
-                entries.append({
-                    "name": child.name,
-                    "path": str(child),
-                    "is_dir": child.is_dir(),
-                    "size": child.stat().st_size,
-                    "modified": int(child.stat().st_mtime),
-                })
+                entries.append(
+                    {
+                        "name": child.name,
+                        "path": str(child),
+                        "is_dir": child.is_dir(),
+                        "size": child.stat().st_size,
+                        "modified": int(child.stat().st_mtime),
+                    }
+                )
             except OSError:
                 continue
         return {"items": entries, "entries": entries, "parent": str(target.parent) if target.parent != target else ""}
@@ -1782,6 +2650,7 @@ async def api_search_files(path: str = Query(""), pattern: str = Query("*")):
         if not target.is_dir():
             raise HTTPException(400, "Not a directory")
         import fnmatch
+
         matches = []
         for f in target.rglob(pattern):
             try:
@@ -1795,15 +2664,70 @@ async def api_search_files(path: str = Query(""), pattern: str = Query("*")):
         raise HTTPException(400, str(exc))
 
 
+# ============================================================
+# Role Management API
+# ============================================================
+
+@app.get("/api/roles")
+async def api_list_roles():
+    """List all available roles (built-in + user-defined)."""
+    from harnessgenj_dev.memory.role_registry import list_roles, get_dispatch_targets
+    roles = list_roles()
+    dispatch_targets = get_dispatch_targets()
+    return {"roles": roles, "dispatch_targets": dispatch_targets}
+
+
+@app.post("/api/roles")
+async def api_create_role(body: dict[str, str]):
+    """Create a new custom role with memory initialization."""
+    from harnessgenj_dev.memory.role_registry import save_role, init_role_memory, get_role
+
+    role_id = body.get("id", "").strip().lower().replace(" ", "_")
+    if not role_id:
+        raise HTTPException(400, "Role ID is required")
+    if get_role(role_id) and not body.get("overwrite"):
+        raise HTTPException(409, f"Role '{role_id}' already exists")
+
+    config = {
+        "id": role_id,
+        "display_name": body.get("display_name", role_id),
+        "avatar": body.get("avatar", role_id[:2].upper()),
+        "color": body.get("color", "pm"),
+        "description": body.get("description", ""),
+        "can_do": [x.strip() for x in body.get("can_do", "").split("\n") if x.strip()],
+        "must_not": [x.strip() for x in body.get("must_not", "").split("\n") if x.strip()],
+        "is_coordinator": body.get("is_coordinator", "false").lower() == "true",
+        "builtin": False,
+    }
+    save_role(role_id, config)
+    mem_path = init_role_memory(role_id)
+    return {"status": "created", "role": config, "memory_path": mem_path}
+
+
+@app.delete("/api/roles/{role_id}")
+async def api_delete_role(role_id: str):
+    """Delete a user-defined role."""
+    from harnessgenj_dev.memory.role_registry import delete_role, get_role
+    role = get_role(role_id)
+    if not role:
+        raise HTTPException(404, f"Role '{role_id}' not found")
+    if role.get("builtin"):
+        raise HTTPException(400, "Cannot delete built-in roles")
+    delete_role(role_id)
+    return {"status": "deleted", "role_id": role_id}
+
+
 @app.get("/api/projects")
 async def api_list_projects():
     from harnessgenj_dev.projects import get_projects, get_active_project
+
     return {"projects": get_projects(), "active": get_active_project()}
 
 
 @app.post("/api/projects")
 async def api_add_project(body: dict[str, str]):
     from harnessgenj_dev.projects import add_project, add_external_project
+
     name = body.get("name", "").strip()
     path = body.get("path", "").strip()
     description = body.get("description", "").strip()
@@ -1823,6 +2747,7 @@ async def api_add_project(body: dict[str, str]):
 @app.post("/api/projects/{name}/switch")
 async def api_switch_project(name: str):
     from harnessgenj_dev.projects import switch_project
+
     switch_project(name)
     return {"status": "switched"}
 
@@ -1830,6 +2755,7 @@ async def api_switch_project(name: str):
 @app.delete("/api/projects/{name}")
 async def api_remove_project(name: str):
     from harnessgenj_dev.projects import remove_project
+
     remove_project(name)
     return {"status": "removed"}
 
@@ -1841,8 +2767,9 @@ async def api_list_sessions(project: str = "default"):
 
 
 @app.post("/api/sessions")
-async def api_create_session(body: dict[str, str], project: str = "default"):
+async def api_create_session(body: dict[str, str]):
     role = body.get("role", "developer")
+    project = body.get("project", "default")
     mgr = app.state.session_manager
     session = mgr.create_session(project, role=role)
     return {"session_id": session.id, "status": "created"}
@@ -1875,10 +2802,12 @@ async def api_reset_sessions(project: str = "default"):
 _file_root = Path(__file__).parent.parent.parent.parent.resolve()
 _file_root_set = False
 
+
 def set_file_root(path: str) -> None:
     global _file_root, _file_root_set
     _file_root = Path(path)
     _file_root_set = True
+
 
 def create_app():
     return app

@@ -16,14 +16,14 @@ logger = logging.getLogger(__name__)
 
 # Built-in hook points in the application lifecycle
 BUILTIN_HOOKS = [
-    "app_startup",       # Fired when the application starts
-    "app_shutdown",      # Fired when the application shuts down
+    "app_startup",  # Fired when the application starts
+    "app_shutdown",  # Fired when the application shuts down
     "before_tool_call",  # Fired before a tool is executed
-    "after_tool_call",   # Fired after a tool is executed
+    "after_tool_call",  # Fired after a tool is executed
     "before_agent_run",  # Fired before the agent starts processing
-    "after_agent_run",   # Fired after the agent finishes
-    "user_message",      # Fired when a user message is received
-    "agent_response",    # Fired when the agent produces a response
+    "after_agent_run",  # Fired after the agent finishes
+    "user_message",  # Fired when a user message is received
+    "agent_response",  # Fired when the agent produces a response
 ]
 
 
@@ -77,9 +77,7 @@ class PluginManager:
             self.registry.unregister(name)
             logger.info("Plugin unregistered: %s", name)
 
-    async def initialize_all(
-        self, configs: dict[str, dict[str, Any]] | None = None
-    ) -> None:
+    async def initialize_all(self, configs: dict[str, dict[str, Any]] | None = None) -> None:
         """Initialize all registered plugins.
 
         Args:

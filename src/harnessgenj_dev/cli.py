@@ -20,23 +20,15 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="hgj-dev",
         description="HarnessGenJ-dev - AI-driven multi-role development assistant",
     )
-    parser.add_argument(
-        "--version", action="version", version="%(prog)s 0.1.0-dev"
-    )
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose output"
-    )
-    parser.add_argument(
-        "--debug", action="store_true", help="Enable debug mode with full tracebacks"
-    )
+    parser.add_argument("--version", action="version", version="%(prog)s 0.1.0-dev")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode with full tracebacks")
 
     subparsers = parser.add_subparsers(dest="command")
 
     # init
     init_parser = subparsers.add_parser("init", help="Initialize project configuration")
-    init_parser.add_argument(
-        "--path", default=".", help="Project root path (default: current directory)"
-    )
+    init_parser.add_argument("--path", default=".", help="Project root path (default: current directory)")
 
     # develop
     dev_parser = subparsers.add_parser("develop", help="Start development session")
@@ -162,9 +154,11 @@ def _cmd_develop(args: argparse.Namespace) -> int:
         # Try env vars
         if provider == "anthropic":
             import os
+
             api_key = os.environ.get("ANTHROPIC_API_KEY", "")
         elif provider == "openai":
             import os
+
             api_key = os.environ.get("OPENAI_API_KEY", "")
 
     # Initialize components
@@ -221,6 +215,7 @@ async def _run_oneshot(agent: Agent, prompt: str, role: str) -> int:
 
         # Show available tools
         from .tools.registry import get_tool_list
+
         tools = get_tool_list()
         if tools:
             print(f"Available tools ({len(tools)}):")
@@ -344,6 +339,15 @@ def _cmd_web(args: argparse.Namespace) -> int:
     """
     import uvicorn
 
+    # Set CWD to active project (Claude Code pattern: agent works in user project, not framework)
+    try:
+        from harnessgenj_dev.projects import get_active_project
+        active = get_active_project()
+        if active and active.get("path"):
+            os.chdir(active["path"])
+    except Exception:
+        pass
+
     _print_banner()
     print(f"Starting Web Dashboard on {args.host}:{args.port}")
     if args.reload:
@@ -395,6 +399,7 @@ def _cmd_status(args: argparse.Namespace) -> int:
 
     # Show tool count
     from .tools.registry import auto_register, get_tool_list
+
     auto_register()
     tools = get_tool_list()
     print(f"Tools registered: {len(tools)}")
@@ -430,10 +435,10 @@ def _cmd_session(args: argparse.Namespace) -> int:
         print(f"Sessions ({len(sessions)}):")
         print("-" * 60)
         for s in sessions:
-            active = " [ACTIVE]" if s.get('active') else ""
-            created = s.get('created_at', 'N/A')
+            active = " [ACTIVE]" if s.get("active") else ""
+            created = s.get("created_at", "N/A")
             print(f"  {s['id'][:8]}... | {s['role']} | {created[:16]}{active}")
-            if s.get('title'):
+            if s.get("title"):
                 print(f"    Title: {s['title']}")
         return 0
 
@@ -483,8 +488,8 @@ def _cmd_tools(args: argparse.Namespace) -> int:
             print(f"Description: {tool.description}")
             print(f"Category: {getattr(tool, 'category', 'N/A')}")
             schema = tool.schema()
-            params = schema.get('parameters', {}).get('properties', {})
-            required = schema.get('parameters', {}).get('required', [])
+            params = schema.get("parameters", {}).get("properties", {})
+            required = schema.get("parameters", {}).get("required", [])
             if params:
                 print("Parameters:")
                 for name, spec in params.items():
@@ -502,7 +507,7 @@ def _cmd_tools(args: argparse.Namespace) -> int:
 
     # Filter by category
     if args.category:
-        tools = [t for t in tools if t.get('category', '').lower() == args.category.lower()]
+        tools = [t for t in tools if t.get("category", "").lower() == args.category.lower()]
 
     if not tools:
         print("No tools found.")
@@ -513,7 +518,7 @@ def _cmd_tools(args: argparse.Namespace) -> int:
         print(f"Category: {args.category}")
     print("-" * 60)
     for t in tools:
-        cat = t.get('category', 'N/A')
+        cat = t.get("category", "N/A")
         print(f"  {t['name']:<20} [{cat:<8}] {t['description'][:50]}")
     return 0
 
@@ -569,9 +574,11 @@ def main() -> None:
     # Handle global debug flags
     if args.debug:
         import logging
+
         logging.basicConfig(level=logging.DEBUG)
     elif args.verbose:
         import logging
+
         logging.basicConfig(level=logging.INFO)
 
     if not args.command or args.command == "help":

@@ -21,9 +21,17 @@ class ProjectIndex:
     """Build and maintain a project file tree index."""
 
     DEFAULT_IGNORE = {
-        ".git", ".hg", ".svn", "__pycache__", "node_modules",
-        ".venv", "venv", ".mypy_cache", ".pytest_cache",
-        ".claude", ".spec-workflow",
+        ".git",
+        ".hg",
+        ".svn",
+        "__pycache__",
+        "node_modules",
+        ".venv",
+        "venv",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".claude",
+        ".spec-workflow",
     }
 
     def __init__(self, root: str = ".") -> None:

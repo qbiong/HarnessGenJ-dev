@@ -73,14 +73,11 @@ class GitHubPlugin(Plugin):
 
         if not self._token:
             logger.warning(
-                "GitHub plugin initialized without a token. "
-                "Set GITHUB_TOKEN env var or pass 'token' in config."
+                "GitHub plugin initialized without a token. Set GITHUB_TOKEN env var or pass 'token' in config."
             )
 
         if self._owner and self._repo:
-            logger.info(
-                "GitHub plugin initialized for %s/%s", self._owner, self._repo
-            )
+            logger.info("GitHub plugin initialized for %s/%s", self._owner, self._repo)
         else:
             logger.info("GitHub plugin initialized (no repo configured)")
 
@@ -193,9 +190,7 @@ class GitHubPlugin(Plugin):
         if assignees:
             payload["assignees"] = assignees
 
-        resp = await self._request(
-            "POST", f"/repos/{owner}/{repo}/issues", json=payload
-        )
+        resp = await self._request("POST", f"/repos/{owner}/{repo}/issues", json=payload)
         resp.raise_for_status()
         data = resp.json()
         return {
@@ -226,9 +221,7 @@ class GitHubPlugin(Plugin):
         if not owner or not repo:
             raise ValueError("owner and repo are required (set in config or pass explicitly)")
 
-        resp = await self._request(
-            "GET", f"/repos/{owner}/{repo}/pulls/{pr_number}"
-        )
+        resp = await self._request("GET", f"/repos/{owner}/{repo}/pulls/{pr_number}")
         resp.raise_for_status()
         data = resp.json()
         return {
@@ -283,9 +276,7 @@ class GitHubPlugin(Plugin):
 
     # --- CLI command implementations ---
 
-    async def github_issues(
-        self, state: str = "open", labels: list[str] | None = None, limit: int = 30
-    ) -> str:
+    async def github_issues(self, state: str = "open", labels: list[str] | None = None, limit: int = 30) -> str:
         """CLI command: list and display open issues.
 
         Args:
@@ -308,10 +299,7 @@ class GitHubPlugin(Plugin):
         lines.append("-" * 60)
         for issue in issues:
             label_str = f" [{', '.join(issue['labels'])}]" if issue["labels"] else ""
-            lines.append(
-                f"  #{issue['number']} {issue['title']}{label_str}\n"
-                f"     {issue['url']}"
-            )
+            lines.append(f"  #{issue['number']} {issue['title']}{label_str}\n     {issue['url']}")
         return "\n".join(lines)
 
     async def github_pr_info(self, pr_number: int) -> str:
@@ -358,9 +346,7 @@ class GitHubPlugin(Plugin):
             Confirmation string.
         """
         try:
-            result = await self.create_issue(
-                title=title, body=body, labels=labels, assignees=assignees
-            )
+            result = await self.create_issue(title=title, body=body, labels=labels, assignees=assignees)
             return f"Issue created: #{result['number']} {result['title']} — {result['url']}"
         except Exception as exc:
             return f"Error creating issue: {exc}"

@@ -76,6 +76,7 @@ def auto_register(package_path: str | None = None) -> list[str]:
         except Exception as e:
             # Log but don't fail on import errors
             from ..utils.logger import get_logger
+
             get_logger("tool_registry").warning("Failed to import tool module %s: %s", module_name, e)
 
     return registered
@@ -93,10 +94,7 @@ def get_schemas() -> list[dict[str, Any]]:
 
 def get_tool_list() -> list[dict[str, str]]:
     """Get list of all registered tools with name and description."""
-    return [
-        {"name": tool.name, "description": tool.description}
-        for tool in _registry.values()
-    ]
+    return [{"name": tool.name, "description": tool.description} for tool in _registry.values()]
 
 
 def get_execution_log(limit: int = 50) -> list[dict[str, Any]]:
@@ -118,30 +116,59 @@ async def execute_tool(name: str, **kwargs: Any) -> ToolResult:
     tool = get_tool(name)
     if tool is None:
         return ToolResult(success=False, error=f"Unknown tool: {name}")
+
+    # Path whitelist: ensure file ops stay within project boundary (Claude Code isolation pattern)
+    path_keys = {"path", "cwd", "file_path"}
+    if name in ("read_file", "write_file", "edit_file", "list_directory") and any(k in kwargs for k in path_keys):
+        for pk in path_keys:
+            if pk in kwargs and kwargs[pk]:
+                import os
+                target = os.path.abspath(str(kwargs[pk]))
+                # Get active project path
+                project_root = None
+                try:
+                    from harnessgenj_dev.projects import get_active_project
+                    active = get_active_project()
+                    if active:
+                        project_root = os.path.abspath(active["path"])
+                except Exception:
+                    pass
+                if project_root:
+                    project_root = os.path.normpath(os.path.abspath(str(project_root)))
+                    target = os.path.normpath(target)
+                    if not target.startswith(project_root):
+                        return ToolResult(
+                            success=False,
+                            error=f"Path '{target}' is outside project boundary '{project_root}'. "
+                                  f"Operate only within the user's project directory.",
+                        )
+
     try:
         result = await tool.execute(**kwargs)
         # Log the execution
-        _execution_log.append({
-            "tool_name": name,
-            "args": {k: str(v)[:100] for k, v in kwargs.items()},
-            "success": result.success,
-            "timestamp": time.time(),
-        })
+        _execution_log.append(
+            {
+                "tool_name": name,
+                "args": {k: str(v)[:100] for k, v in kwargs.items()},
+                "success": result.success,
+                "timestamp": time.time(),
+            }
+        )
         return result
     except Exception as e:
         error_result = ToolResult(success=False, error=str(e))
-        _execution_log.append({
-            "tool_name": name,
-            "args": {k: str(v)[:100] for k, v in kwargs.items()},
-            "success": False,
-            "timestamp": time.time(),
-        })
+        _execution_log.append(
+            {
+                "tool_name": name,
+                "args": {k: str(v)[:100] for k, v in kwargs.items()},
+                "success": False,
+                "timestamp": time.time(),
+            }
+        )
         return error_result
 
 
-async def execute_tools_parallel(
-    tool_calls: list[dict[str, Any]]
-) -> list[ToolResult]:
+async def execute_tools_parallel(tool_calls: list[dict[str, Any]]) -> list[ToolResult]:
     """Execute multiple tool calls with parallel execution for read-only tools.
 
     Claude Code 规则：
@@ -180,10 +207,8 @@ async def execute_tools_parallel(
 
         # 使用 asyncio.gather 并行执行
         import asyncio
-        task_results = await asyncio.gather(
-            *[t[1] for t in parallel_tasks],
-            return_exceptions=True
-        )
+
+        task_results = await asyncio.gather(*[t[1] for t in parallel_tasks], return_exceptions=True)
 
         for (idx, _), result in zip(parallel_tasks, task_results):
             if isinstance(result, Exception):

@@ -37,6 +37,7 @@ class RoleMemory(Memory):
 
     def _load(self) -> None:
         import json as _json
+
         path = self._file()
         if path.exists():
             try:
@@ -48,6 +49,7 @@ class RoleMemory(Memory):
     def save(self) -> None:
         """Persist memory to disk."""
         import json as _json
+
         path = self._file()
         data = self.to_dict()
         path.write_text(_json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -55,24 +57,30 @@ class RoleMemory(Memory):
     def _inject_identity(self) -> None:
         """Set up role identity entry."""
         identity = _ROLE_IDENTITIES.get(self.role, _ROLE_IDENTITIES["default"])
-        self.put(MemoryEntry(
-            key="_role_identity",
-            content=identity["identity"],
-            tags=["identity", "self-awareness"],
-            role=self.role,
-        ))
-        self.put(MemoryEntry(
-            key="_role_responsibilities",
-            content=identity["responsibilities"],
-            tags=["identity", "responsibilities"],
-            role=self.role,
-        ))
-        self.put(MemoryEntry(
-            key="_role_capabilities",
-            content=identity["capabilities"],
-            tags=["identity", "capabilities"],
-            role=self.role,
-        ))
+        self.put(
+            MemoryEntry(
+                key="_role_identity",
+                content=identity["identity"],
+                tags=["identity", "self-awareness"],
+                role=self.role,
+            )
+        )
+        self.put(
+            MemoryEntry(
+                key="_role_responsibilities",
+                content=identity["responsibilities"],
+                tags=["identity", "responsibilities"],
+                role=self.role,
+            )
+        )
+        self.put(
+            MemoryEntry(
+                key="_role_capabilities",
+                content=identity["capabilities"],
+                tags=["identity", "capabilities"],
+                role=self.role,
+            )
+        )
         self.save()
 
     def get_identity_block(self) -> str:
@@ -96,12 +104,14 @@ class RoleMemory(Memory):
 
     def add_knowledge(self, key: str, content: str) -> None:
         """Add or update role-specific knowledge."""
-        self.put(MemoryEntry(
-            key=key,
-            content=content,
-            tags=["knowledge"],
-            role=self.role,
-        ))
+        self.put(
+            MemoryEntry(
+                key=key,
+                content=content,
+                tags=["knowledge"],
+                role=self.role,
+            )
+        )
         self.save()
 
 
@@ -281,10 +291,6 @@ _ROLE_IDENTITIES: dict[str, dict[str, str]] = {
             "- Follow best practices\n"
             "- Collaborate effectively with team members"
         ),
-        "capabilities": (
-            "## Capabilities\n"
-            "- Access to project tools\n"
-            "- Ability to collaborate with other roles"
-        ),
+        "capabilities": ("## Capabilities\n- Access to project tools\n- Ability to collaborate with other roles"),
     },
 }

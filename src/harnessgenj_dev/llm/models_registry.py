@@ -234,12 +234,7 @@ CHINA_MODELS: list[ModelInfo] = [
 # ============================================================
 # Combined registry
 # ============================================================
-ALL_MODELS: list[ModelInfo] = (
-    DEEPSEEK_V4_MODELS
-    + ANTHROPIC_MODELS
-    + OPENAI_MODELS
-    + CHINA_MODELS
-)
+ALL_MODELS: list[ModelInfo] = DEEPSEEK_V4_MODELS + ANTHROPIC_MODELS + OPENAI_MODELS + CHINA_MODELS
 
 _MODEL_MAP: dict[str, ModelInfo] = {m.id: m for m in ALL_MODELS}
 

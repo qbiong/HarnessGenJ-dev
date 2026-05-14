@@ -63,11 +63,13 @@ class MessagesAPIProvider(BaseProvider):
         """
         api_tools = []
         for tool in tools:
-            api_tools.append({
-                "name": tool["name"],
-                "description": tool.get("description", ""),
-                "input_schema": tool.get("parameters", {"type": "object", "properties": {}}),
-            })
+            api_tools.append(
+                {
+                    "name": tool["name"],
+                    "description": tool.get("description", ""),
+                    "input_schema": tool.get("parameters", {"type": "object", "properties": {}}),
+                }
+            )
         return api_tools
 
     def _build_usage(self, usage: Any) -> UsageReport:
@@ -107,11 +109,13 @@ class MessagesAPIProvider(BaseProvider):
         content = getattr(message, "content", [])
         for block in content:
             if getattr(block, "type", None) == "tool_use":
-                tool_calls.append({
-                    "id": block.id,
-                    "name": block.name,
-                    "input": getattr(block, "input", {}),
-                })
+                tool_calls.append(
+                    {
+                        "id": block.id,
+                        "name": block.name,
+                        "input": getattr(block, "input", {}),
+                    }
+                )
         return tool_calls
 
     async def chat(

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
 from ..models import LLMResponse, StreamChunk, UsageReport
 from .base import BaseProvider
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAIProvider(BaseProvider):
@@ -43,9 +46,7 @@ class OpenAIProvider(BaseProvider):
         try:
             from openai import AsyncOpenAI
         except ImportError:
-            raise RuntimeError(
-                "openai SDK not installed. Run: pip install openai"
-            )
+            raise RuntimeError("openai SDK not installed. Run: pip install openai")
 
         kwargs: dict[str, Any] = {"api_key": self.api_key or None}
         if self.base_url:
@@ -62,14 +63,16 @@ class OpenAIProvider(BaseProvider):
         """
         openai_tools = []
         for tool in tools:
-            openai_tools.append({
-                "type": "function",
-                "function": {
-                    "name": tool["name"],
-                    "description": tool.get("description", ""),
-                    "parameters": tool.get("parameters", {"type": "object", "properties": {}}),
-                },
-            })
+            openai_tools.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": tool["name"],
+                        "description": tool.get("description", ""),
+                        "parameters": tool.get("parameters", {"type": "object", "properties": {}}),
+                    },
+                }
+            )
         return openai_tools
 
     def _build_usage(self, usage: Any) -> UsageReport:
@@ -80,10 +83,7 @@ class OpenAIProvider(BaseProvider):
 
         # Estimate cost (per 1M tokens, GPT-4o pricing)
         cost_per_m: dict[str, float] = {"input": 2.50, "output": 10.0}
-        estimated = (
-            input_tokens * cost_per_m["input"]
-            + output_tokens * cost_per_m["output"]
-        ) / 1_000_000
+        estimated = (input_tokens * cost_per_m["input"] + output_tokens * cost_per_m["output"]) / 1_000_000
 
         return UsageReport(
             input_tokens=input_tokens,
@@ -103,18 +103,19 @@ class OpenAIProvider(BaseProvider):
         if raw_calls:
             for tc in raw_calls:
                 import json
+
                 try:
                     args = json.loads(tc.function.arguments)
                 except json.JSONDecodeError:
-                    logger.warning(
-                        "Failed to parse tool call arguments: %s", tc.function.arguments
-                    )
+                    logger.warning("Failed to parse tool call arguments: %s", tc.function.arguments)
                     args = {"raw": tc.function.arguments}
-                tool_calls.append({
-                    "id": tc.id,
-                    "name": tc.function.name,
-                    "input": args,
-                })
+                tool_calls.append(
+                    {
+                        "id": tc.id,
+                        "name": tc.function.name,
+                        "input": args,
+                    }
+                )
         return tool_calls
 
     async def chat(
@@ -147,12 +148,14 @@ class OpenAIProvider(BaseProvider):
         openai_messages: list[dict[str, Any]] = []
         if system:
             openai_messages.append({"role": "system", "content": system})
-        # Include reasoning_content in assistant messages for DeepSeek V4
         for msg in messages:
             if msg.get("role") == "assistant" and msg.get("reasoning_content"):
-                openai_messages.append(msg)  # keep reasoning_content field
-            else:
+                # DeepSeek requires reasoning_content to be passed back in thinking mode
                 openai_messages.append(msg)
+            else:
+                cleaned = dict(msg)
+                cleaned.pop("reasoning_content", None)
+                openai_messages.append(cleaned)
 
         kwargs: dict[str, Any] = {
             "model": model,
@@ -203,7 +206,13 @@ class OpenAIProvider(BaseProvider):
         openai_messages: list[dict[str, Any]] = []
         if system:
             openai_messages.append({"role": "system", "content": system})
-        openai_messages.extend(messages)
+        for msg in messages:
+            if msg.get("role") == "assistant" and msg.get("reasoning_content"):
+                openai_messages.append(msg)
+            else:
+                cleaned = dict(msg)
+                cleaned.pop("reasoning_content", None)
+                openai_messages.append(cleaned)
 
         kwargs: dict[str, Any] = {
             "model": model,
@@ -222,8 +231,37 @@ class OpenAIProvider(BaseProvider):
             if chunk.choices:
                 delta = chunk.choices[0].delta
                 delta_text = getattr(delta, "content", None)
-                if delta_text:
-                    yield StreamChunk(content=delta_text, done=False)
+
+                # Capture tool calls from streaming API (native function calling)
+                tool_calls = None
+                delta_tc = getattr(delta, "tool_calls", None)
+                if delta_tc:
+                    tool_calls = []
+                    for tc in delta_tc:
+                        tc_index = getattr(tc, "index", 0)
+                        tc_dict = {
+                            "id": tc.id or "",
+                            "index": tc_index,
+                            "type": tc.type or "function",
+                            "function": {
+                                "name": tc.function.name if tc.function else "",
+                                "arguments": tc.function.arguments if tc.function else "",
+                            },
+                        }
+                        tool_calls.append(tc_dict)
+
+                # Capture reasoning_content (DeepSeek thinking mode)
+                delta_reasoning = getattr(delta, "reasoning_content", None)
+                if not delta_reasoning:
+                    # Some APIs send reasoning_content at chunk level
+                    delta_reasoning = getattr(chunk, "reasoning_content", None)
+
+                yield StreamChunk(
+                    content=delta_text,
+                    done=False,
+                    tool_calls=tool_calls,
+                    reasoning_content=delta_reasoning,
+                )
 
                 # Check for completion
                 finish = chunk.choices[0].finish_reason

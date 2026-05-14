@@ -141,9 +141,7 @@ def inject_into_memory(
 
     # Save facts to shared memory
     for f in knowledge.get("facts", []):
-        shared.add_shared_knowledge(
-            f"fact_{f['key']}", f["content"], tags=["knowledge", "auto-extracted"]
-        )
+        shared.add_shared_knowledge(f"fact_{f['key']}", f["content"], tags=["knowledge", "auto-extracted"])
         counts["facts_saved"] += 1
 
     # Save learnings to role memory

@@ -31,6 +31,7 @@ TIER1_KEEP_TOOL_RESULTS = 10  # 保留最近 10 个 tool results（大窗口更�
 @dataclass
 class CompactionResult:
     """Compaction result."""
+
     original_tokens: int
     compacted_tokens: int
     tier_applied: int  # 1, 2, or 3
@@ -42,6 +43,7 @@ class CompactionResult:
 @dataclass
 class ContextState:
     """Context state tracking."""
+
     message_count: int = 0
     tool_result_count: int = 0
     total_tokens: int = 0
@@ -88,9 +90,7 @@ class ContextManager:
     # Tier 1: Micro-compact (每次 API 调用前)
     # ============================================================
 
-    def tier1_micro_compact(
-        self, messages: list[dict[str, str]]
-    ) -> CompactionResult:
+    def tier1_micro_compact(self, messages: list[dict[str, str]]) -> CompactionResult:
         """Tier 1: 清理旧 tool results，只保留最近 N 个。
 
         实现逻辑：
@@ -110,13 +110,10 @@ class ContextManager:
 
         # 只保留最近的 tool results
         if len(tool_result_indices) > self.tier1_keep_results:
-            for idx in tool_result_indices[:-self.tier1_keep_results]:
+            for idx in tool_result_indices[: -self.tier1_keep_results]:
                 original_content = messages[idx].get("content", "")
                 # 替换为占位符，保留结构信息
-                truncated_content = (
-                    f"[Old tool result content cleared - "
-                    f"{len(original_content)} chars truncated]"
-                )
+                truncated_content = f"[Old tool result content cleared - {len(original_content)} chars truncated]"
                 messages[idx] = {
                     "role": "tool",
                     "content": truncated_content,
@@ -138,9 +135,7 @@ class ContextManager:
     # Tier 2: API-level compaction
     # ============================================================
 
-    def tier2_api_compact(
-        self, messages: list[dict[str, str]]
-    ) -> CompactionResult:
+    def tier2_api_compact(self, messages: list[dict[str, str]]) -> CompactionResult:
         """Tier 2: 基于 token 阈值的压缩。
 
         特点：
@@ -171,9 +166,7 @@ class ContextManager:
             messages_removed=len(messages) - recent_count,
         )
 
-    def _compact_older_messages(
-        self, messages: list[dict[str, str]]
-    ) -> list[dict[str, str]]:
+    def _compact_older_messages(self, messages: list[dict[str, str]]) -> list[dict[str, str]]:
         """精简旧消息，提取关键信息"""
         if not messages:
             return []
@@ -205,10 +198,12 @@ class ContextManager:
             summary_parts.append(f"File changes: {'; '.join(file_changes[:3])}")
 
         if summary_parts:
-            compacted.append({
-                "role": "system",
-                "content": "[Compacted history]\n" + "\n".join(summary_parts),
-            })
+            compacted.append(
+                {
+                    "role": "system",
+                    "content": "[Compacted history]\n" + "\n".join(summary_parts),
+                }
+            )
 
         return compacted
 
@@ -216,9 +211,7 @@ class ContextManager:
     # Tier 3: Full LLM Summarization
     # ============================================================
 
-    def tier3_full_summarize(
-        self, messages: list[dict[str, str]]
-    ) -> CompactionResult:
+    def tier3_full_summarize(self, messages: list[dict[str, str]]) -> CompactionResult:
         """Tier 3: 使用 LLM 生成结构化 9-section 摘要。
 
         9-section 结构（Claude Code 格式）：
@@ -257,7 +250,7 @@ class ContextManager:
 ## Continuation
 You were already working on a task before this summary was created.
 Continue your work without acknowledging the summary or recapping what happened.
-Just proceed with the current task."""
+Just proceed with the current task.""",
             }
         ]
 
@@ -271,9 +264,7 @@ Just proceed with the current task."""
             summary=summary_prompt[:500],  # 返回摘要预览
         )
 
-    def _build_summary_prompt(
-        self, messages: list[dict[str, str]]
-    ) -> str:
+    def _build_summary_prompt(self, messages: list[dict[str, str]]) -> str:
         """构建摘要生成的提示（供 LLM 使用）"""
         # 提取关键信息片段
         user_msgs = []
@@ -303,10 +294,10 @@ Just proceed with the current task."""
 
 ## 4. Errors & Fixes
 [遇到的错误及解决方案]
-{chr(10).join(f'- {e}' for e in errors[:5]) if errors else '[无错误记录]'}
+{chr(10).join(f"- {e}" for e in errors[:5]) if errors else "[无错误记录]"}
 
 ## 5. All User Messages
-{chr(10).join(f'- {m}' for m in user_msgs[:10])}
+{chr(10).join(f"- {m}" for m in user_msgs[:10])}
 
 ## 6. Pending Tasks
 [未完成的任务]
@@ -355,10 +346,7 @@ Just proceed with the current task."""
             else:
                 tier = 1
 
-        logger.info(
-            f"Compaction triggered: tier={tier}, "
-            f"tokens={current_tokens}/{self.max_tokens}"
-        )
+        logger.info(f"Compaction triggered: tier={tier}, tokens={current_tokens}/{self.max_tokens}")
 
         if tier == 1:
             result = self.tier1_micro_compact(messages)
@@ -376,6 +364,7 @@ Just proceed with the current task."""
     def _get_timestamp(self) -> str:
         """获取当前时间戳"""
         from datetime import datetime
+
         return datetime.now().isoformat()
 
     # ============================================================
@@ -403,40 +392,50 @@ Just proceed with the current task."""
         context = []
 
         # 1. 边界标记
-        context.append({
-            "role": "system",
-            "content": f"[COMPACTION BOUNDARY]\n\n{summary}",
-        })
+        context.append(
+            {
+                "role": "system",
+                "content": f"[COMPACTION BOUNDARY]\n\n{summary}",
+            }
+        )
 
         # 2. 最近读取的文件（简化处理）
         for file_info in recent_files[:5]:
-            context.append({
-                "role": "system",
-                "content": f"[Recent file: {file_info.get('path', 'unknown')}]\n"
-                          f"{file_info.get('content', '')[:5000]}",
-            })
+            context.append(
+                {
+                    "role": "system",
+                    "content": f"[Recent file: {file_info.get('path', 'unknown')}]\n"
+                    f"{file_info.get('content', '')[:5000]}",
+                }
+            )
 
         # 3. Skills 重新注入
         for skill in skills[-5:]:  # 最多 5 个
-            context.append({
-                "role": "system",
-                "content": f"[Skill: {skill}]",
-            })
+            context.append(
+                {
+                    "role": "system",
+                    "content": f"[Skill: {skill}]",
+                }
+            )
 
         # 4. 工具定义（简化为名称列表）
         if tool_schemas:
             tool_names = [t.get("function", {}).get("name", "unknown") for t in tool_schemas]
-            context.append({
-                "role": "system",
-                "content": f"[Available tools: {', '.join(tool_names[:20])}]",
-            })
+            context.append(
+                {
+                    "role": "system",
+                    "content": f"[Available tools: {', '.join(tool_names[:20])}]",
+                }
+            )
 
         # 5. CLAUDE.md
         if claude_md:
-            context.append({
-                "role": "system",
-                "content": f"[Project CLAUDE.md]\n{claude_md}",
-            })
+            context.append(
+                {
+                    "role": "system",
+                    "content": f"[Project CLAUDE.md]\n{claude_md}",
+                }
+            )
 
         return context
 
@@ -456,6 +455,7 @@ def get_context_manager() -> ContextManager:
 # ============================================================
 # Backward Compatibility: Legacy ContextWindow
 # ============================================================
+
 
 @dataclass
 class ContextWindow:
@@ -511,21 +511,20 @@ class ContextWindow:
         if dropped_count > 0:
             # Estimate token count of dropped messages
             dropped_tokens = sum(
-                len(m.get("content", "")) // 4
-                for m in self.messages[1 : len(self.messages) - max_recent]
+                len(m.get("content", "")) // 4 for m in self.messages[1 : len(self.messages) - max_recent]
             )
-            compressed.append({
-                "role": "system",
-                "content": (
-                    f"[{dropped_count} previous messages summarized "
-                    f"(~{dropped_tokens} tokens) to fit context window]"
-                ),
-            })
+            compressed.append(
+                {
+                    "role": "system",
+                    "content": (
+                        f"[{dropped_count} previous messages summarized "
+                        f"(~{dropped_tokens} tokens) to fit context window]"
+                    ),
+                }
+            )
 
         compressed.extend(recent)
 
         # Recalculate token count
-        self.total_tokens = sum(
-            len(m.get("content", "")) // 4 for m in compressed
-        )
+        self.total_tokens = sum(len(m.get("content", "")) // 4 for m in compressed)
         return compressed

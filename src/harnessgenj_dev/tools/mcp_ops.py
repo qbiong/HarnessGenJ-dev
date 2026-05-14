@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 try:
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
+
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
@@ -175,9 +176,7 @@ class MCPClientManager:
             return self._servers[server_name].resources
         return []
 
-    async def call_tool(
-        self, server_name: str, tool_name: str, arguments: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def call_tool(self, server_name: str, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Call a tool on an MCP server.
 
         Args:
@@ -199,7 +198,7 @@ class MCPClientManager:
             result = await server.client_session.call_tool(tool_name, arguments)
             # Extract content from result
             content_parts = []
-            for content in (result.content or []):
+            for content in result.content or []:
                 if hasattr(content, "text"):
                     content_parts.append(content.text)
                 else:

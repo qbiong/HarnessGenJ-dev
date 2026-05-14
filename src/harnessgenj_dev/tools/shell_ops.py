@@ -27,6 +27,15 @@ class RunCommandTool(BaseTool):
     }
 
     async def execute(self, command: str, timeout: int = 30, cwd: str | None = None, **kwargs: Any) -> ToolResult:
+        # Default to user's project directory (Claude Code isolation pattern)
+        if cwd is None:
+            try:
+                from harnessgenj_dev.projects import get_active_project
+                active = get_active_project()
+                if active and active.get("path"):
+                    cwd = active["path"]
+            except Exception:
+                pass
         try:
             proc = await asyncio.create_subprocess_shell(
                 command,

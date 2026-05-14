@@ -110,6 +110,7 @@ class HGJDevApp(App):
 
         log = self.query_one("#output-log", RichLog)
         from ..tools.registry import get_tool_list
+
         tools = get_tool_list()
         if tools:
             log.write(f"[bold]Tools available:[/bold] {len(tools)}")
@@ -147,6 +148,7 @@ class HGJDevApp(App):
 
         if user_input.lower() == "tools":
             from ..tools.registry import get_tool_list
+
             tools = get_tool_list()
             log.write(f"\n[bold]Available tools ({len(tools)}):[/bold]")
             for t in tools:

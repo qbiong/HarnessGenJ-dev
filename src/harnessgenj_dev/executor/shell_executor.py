@@ -47,9 +47,9 @@ class ShellExecutor(Sandbox):
                 err = stderr.decode("utf-8", errors="replace")
 
                 if len(out) > self.MAX_OUTPUT_BYTES:
-                    out = out[:self.MAX_OUTPUT_BYTES] + "\n[Output truncated]"
+                    out = out[: self.MAX_OUTPUT_BYTES] + "\n[Output truncated]"
                 if len(err) > self.MAX_OUTPUT_BYTES:
-                    err = err[:self.MAX_OUTPUT_BYTES] + "\n[Output truncated]"
+                    err = err[: self.MAX_OUTPUT_BYTES] + "\n[Output truncated]"
 
                 return ExecutionResult(
                     success=proc.returncode == 0,

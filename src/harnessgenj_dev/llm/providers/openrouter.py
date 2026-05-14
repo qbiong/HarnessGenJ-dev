@@ -59,10 +59,7 @@ class OpenRouterProvider(OpenAIProvider):
         # Estimate cost — OpenRouter pricing varies by model,
         # so we use a conservative average (per 1M tokens).
         cost_per_m: dict[str, float] = {"input": 1.0, "output": 3.0}
-        estimated = (
-            input_tokens * cost_per_m["input"]
-            + output_tokens * cost_per_m["output"]
-        ) / 1_000_000
+        estimated = (input_tokens * cost_per_m["input"] + output_tokens * cost_per_m["output"]) / 1_000_000
 
         return UsageReport(
             input_tokens=input_tokens,

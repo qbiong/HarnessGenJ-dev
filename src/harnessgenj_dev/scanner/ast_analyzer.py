@@ -120,9 +120,7 @@ class _PythonNodeVisitor(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         kind = "method" if self._current_class else "function"
-        decorators = [
-            self._get_decorator_name(d) for d in node.decorator_list
-        ]
+        decorators = [self._get_decorator_name(d) for d in node.decorator_list]
 
         args = []
         for arg in node.args.args:
@@ -157,9 +155,7 @@ class _PythonNodeVisitor(ast.NodeVisitor):
     visit_AsyncFunctionDef = visit_FunctionDef
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        decorators = [
-            self._get_decorator_name(d) for d in node.decorator_list
-        ]
+        decorators = [self._get_decorator_name(d) for d in node.decorator_list]
         symbol = SymbolInfo(
             name=node.name,
             kind="class",

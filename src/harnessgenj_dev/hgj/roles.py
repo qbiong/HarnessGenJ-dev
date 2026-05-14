@@ -96,8 +96,7 @@ ARCHITECT_ROLE = HGJRole(
 
 # Registry of all standard HGJ roles
 STANDARD_ROLES: dict[str, HGJRole] = {
-    role.name: role
-    for role in [DEVELOPER_ROLE, CODE_REVIEWER_ROLE, BUG_HUNTER_ROLE, TESTER_ROLE, ARCHITECT_ROLE]
+    role.name: role for role in [DEVELOPER_ROLE, CODE_REVIEWER_ROLE, BUG_HUNTER_ROLE, TESTER_ROLE, ARCHITECT_ROLE]
 }
 
 

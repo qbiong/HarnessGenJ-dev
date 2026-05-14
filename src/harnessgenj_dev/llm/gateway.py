@@ -41,8 +41,13 @@ _PROVIDER_REGISTRY: dict[str, type[BaseProvider]] = {
 
 # Provider aliases
 _PROVIDER_ALIASES: set[str] = {
-    "qwen", "zhipu", "moonshot",
-    "siliconflow", "baichuan", "minimax", "custom",
+    "qwen",
+    "zhipu",
+    "moonshot",
+    "siliconflow",
+    "baichuan",
+    "minimax",
+    "custom",
 }
 
 # Fallback chain for degradation
@@ -107,10 +112,18 @@ def _is_retryable_error(exc: Exception) -> bool:
     """Check if an error is retryable."""
     error_str = str(exc).lower()
     retryable_indicators = [
-        "429", "rate limit", "too many requests",
-        "500", "502", "503", "504",
-        "connection reset", "connection refused",
-        "connection timed out", "timed out", "timeout",
+        "429",
+        "rate limit",
+        "too many requests",
+        "500",
+        "502",
+        "503",
+        "504",
+        "connection reset",
+        "connection refused",
+        "connection timed out",
+        "timed out",
+        "timeout",
         "server error",
     ]
     return any(indicator in error_str for indicator in retryable_indicators)
@@ -129,7 +142,7 @@ def _extract_retry_after(exc: Exception) -> float | None:
 
 def _calculate_backoff_delay(attempt: int, base_delay: float, max_delay: float, jitter: float) -> float:
     """Calculate exponential backoff delay with jitter."""
-    delay = base_delay * (2 ** attempt)
+    delay = base_delay * (2**attempt)
     jitter_range = delay * jitter
     delay += random.uniform(-jitter_range, jitter_range)
     return min(max(delay, 0.1), max_delay)
@@ -206,10 +219,7 @@ class LLMGateway:
 
         provider_cls = _PROVIDER_REGISTRY.get(provider_name)
         if provider_cls is None:
-            raise ValueError(
-                f"Unknown provider '{provider_name}'. "
-                f"Available: {', '.join(_PROVIDER_REGISTRY.keys())}. "
-            )
+            raise ValueError(f"Unknown provider '{provider_name}'. Available: {', '.join(_PROVIDER_REGISTRY.keys())}. ")
         return provider_cls(api_key=api_key or self.api_key, base_url=self.base_url)
 
     async def chat(
@@ -272,9 +282,7 @@ class LLMGateway:
                 response = await _do_chat()
             return response
         except Exception as exc:
-            return await self._degrade(
-                messages, tools, target_model, temperature, max_tokens, exc
-            )
+            return await self._degrade(messages, tools, target_model, temperature, max_tokens, exc)
 
     async def stream(
         self,

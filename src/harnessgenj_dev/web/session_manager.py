@@ -147,9 +147,7 @@ class SessionManager:
         self._cache[project] = sessions
         return sessions
 
-    def create_session(
-        self, project: str, role: str = "project_manager"
-    ) -> Session:
+    def create_session(self, project: str, role: str = "project_manager") -> Session:
         """Create a new session for a project.
 
         Args:
@@ -223,9 +221,7 @@ class SessionManager:
             return None
         return self.create_session(project)
 
-    def list_sessions(
-        self, project: str, limit: int = 50
-    ) -> list[dict[str, Any]]:
+    def list_sessions(self, project: str, limit: int = 50) -> list[dict[str, Any]]:
         """List all sessions for a project, sorted by last updated.
 
         Args:
@@ -284,9 +280,7 @@ class SessionManager:
 
         return True
 
-    def fork_session(
-        self, project: str, session_id: str, new_role: str | None = None
-    ) -> Session | None:
+    def fork_session(self, project: str, session_id: str, new_role: str | None = None) -> Session | None:
         """Fork a session to create a new branch.
 
         Creates a new session with copied conversation history.
@@ -321,9 +315,7 @@ class SessionManager:
         self._save_session(forked)
         return forked
 
-    def get_fork_tree(
-        self, project: str, session_id: str
-    ) -> list[dict[str, Any]]:
+    def get_fork_tree(self, project: str, session_id: str) -> list[dict[str, Any]]:
         """Get the fork tree for a session (all forks descendants).
 
         Args:
@@ -348,12 +340,14 @@ class SessionManager:
 
             session = cache.get(sid)
             if session:
-                tree.append({
-                    "id": session.id,
-                    "role": session.role,
-                    "created_at": session.created_at,
-                    "forked_from": session.metadata.get("forked_from"),
-                })
+                tree.append(
+                    {
+                        "id": session.id,
+                        "role": session.role,
+                        "created_at": session.created_at,
+                        "forked_from": session.metadata.get("forked_from"),
+                    }
+                )
                 # Add children (sessions forked from this one)
                 for other in cache.values():
                     if other.metadata.get("forked_from") == sid:
@@ -392,17 +386,13 @@ class SessionManager:
 
         fpath = self._session_file(session.project, session.id)
         data = session.to_dict()
-        fpath.write_text(
-            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        fpath.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
         # Update cache
         cache = self._load_project_cache(session.project)
         cache[session.id] = session
 
-    def create_checkpoint(
-        self, project: str, session_id: str, label: str = ""
-    ) -> str | None:
+    def create_checkpoint(self, project: str, session_id: str, label: str = "") -> str | None:
         """Create a checkpoint of the current session state.
 
         Args:
@@ -432,9 +422,7 @@ class SessionManager:
         self._save_session(session)
         return checkpoint_id
 
-    def rollback_to_checkpoint(
-        self, project: str, session_id: str, checkpoint_id: str
-    ) -> bool:
+    def rollback_to_checkpoint(self, project: str, session_id: str, checkpoint_id: str) -> bool:
         """Rollback session to a previous checkpoint.
 
         Args:

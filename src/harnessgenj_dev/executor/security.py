@@ -9,8 +9,8 @@ from enum import Enum
 class SecurityLevel(str, Enum):
     """Security check severity levels."""
 
-    STRICT = "strict"       # Block most operations, suitable for untrusted code
-    MODERATE = "moderate"   # Block clearly dangerous operations, allow filesystem access
+    STRICT = "strict"  # Block most operations, suitable for untrusted code
+    MODERATE = "moderate"  # Block clearly dangerous operations, allow filesystem access
     PERMISSIVE = "permissive"  # Only block destructive operations
 
 
@@ -18,53 +18,49 @@ class SecurityLevel(str, Enum):
 DANGEROUS_PATTERNS: dict[str, list[str]] = {
     # Destructive operations (always blocked, all levels)
     "destructive": [
-        r"rm\s+-rf\s+/",              # Recursive forced delete from root
-        r"format\s+[a-zA-Z]:",        # Windows format drive
-        r"sudo\s+.*(?:rm|mkfs|dd)",   # Dangerous sudo commands
-        r"os\.system\s*\(.*rm\s+-rf", # Python os.system rm -rf
+        r"rm\s+-rf\s+/",  # Recursive forced delete from root
+        r"format\s+[a-zA-Z]:",  # Windows format drive
+        r"sudo\s+.*(?:rm|mkfs|dd)",  # Dangerous sudo commands
+        r"os\.system\s*\(.*rm\s+-rf",  # Python os.system rm -rf
         r"subprocess.*shell=True.*rm\s+-rf",  # Subprocess with rm -rf
         r"shutil\.rmtree\s*\(.*['\"]/",  # Delete from root
-        r"dd\s+of=",                  # Disk write
-        r"chmod\s+777",               # Overly permissive file permissions
+        r"dd\s+of=",  # Disk write
+        r"chmod\s+777",  # Overly permissive file permissions
     ],
-
     # Dynamic code execution (blocked in strict, allowed in moderate/permissive)
     "dynamic_code": [
-        r"\beval\s*\(",               # Dynamic evaluation
-        r"\bexec\s*\(",               # Dynamic code execution
+        r"\beval\s*\(",  # Dynamic evaluation
+        r"\bexec\s*\(",  # Dynamic code execution
         r"__import__\s*\(.*['\"]os['\"]\)",  # Dynamic os import
         r"getattr\s*\(.*__import__",  # Dynamic import via getattr
-        r"\bglobals\s*\(\)",          # Access global namespace
-        r"\blocals\s*\(\)\.update",   # Modify local namespace
+        r"\bglobals\s*\(\)",  # Access global namespace
+        r"\blocals\s*\(\)\.update",  # Modify local namespace
     ],
-
     # Network access (blocked in strict, allowed in moderate/permissive)
     "network": [
-        r"\burllib\.request",         # URL request
-        r"import\s+urllib\b",         # URL library
-        r"from\s+urllib\b",           # URL library
-        r"\brequests\b",              # HTTP requests library
-        r"\bhttpx\b",                 # Async HTTP library
-        r"\bsocket\b",                # Raw socket access
+        r"\burllib\.request",  # URL request
+        r"import\s+urllib\b",  # URL library
+        r"from\s+urllib\b",  # URL library
+        r"\brequests\b",  # HTTP requests library
+        r"\bhttpx\b",  # Async HTTP library
+        r"\bsocket\b",  # Raw socket access
     ],
-
     # Process creation (blocked in strict, allowed in moderate with limits)
     "process": [
-        r"\bsubprocess\b",            # Subprocess import
-        r"os\.system\s*\(",           # System command execution
-        r"os\.popen\s*\(",            # Popen command execution
-        r"os\.fork\s*\(",             # Process forking
-        r"\bmultiprocessing\b",       # Multiprocessing
-        r"\bthreading\b",             # Threading
+        r"\bsubprocess\b",  # Subprocess import
+        r"os\.system\s*\(",  # System command execution
+        r"os\.popen\s*\(",  # Popen command execution
+        r"os\.fork\s*\(",  # Process forking
+        r"\bmultiprocessing\b",  # Multiprocessing
+        r"\bthreading\b",  # Threading
     ],
-
     # Filesystem traversal (blocked in strict, allowed in moderate/permissive)
     "filesystem": [
-        r"os\.listdir\s*\(",          # List directory
-        r"os\.walk\s*\(",             # Walk directory tree
-        r"\.iterdir\s*\(",            # Iterate directory
-        r"os\.scandir\s*\(",          # Scan directory
-        r"os\.getcwd\s*\(",           # Get current directory
+        r"os\.listdir\s*\(",  # List directory
+        r"os\.walk\s*\(",  # Walk directory tree
+        r"\.iterdir\s*\(",  # Iterate directory
+        r"os\.scandir\s*\(",  # Scan directory
+        r"os\.getcwd\s*\(",  # Get current directory
     ],
 }
 

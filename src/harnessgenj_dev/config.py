@@ -25,10 +25,17 @@ class LLMConfig(BaseModel):
 class ToolConfig(BaseModel):
     """Tool configuration."""
 
-    enabled_tools: list[str] = Field(default_factory=lambda: [
-        "read_file", "write_file", "edit_file", "search_code",
-        "run_command", "run_test", "git_ops",
-    ])
+    enabled_tools: list[str] = Field(
+        default_factory=lambda: [
+            "read_file",
+            "write_file",
+            "edit_file",
+            "search_code",
+            "run_command",
+            "run_test",
+            "git_ops",
+        ]
+    )
     default_timeout: int = 30
 
 

@@ -135,17 +135,11 @@ def resolve_imports(content: str, base_path: Path) -> str:
             # 递归处理被导入的文件
             imported_content = resolve_imports(imported_content, full_path.parent)
             content = content.replace(
-                f"@{import_path}",
-                f"\n--- Imported from {import_path} ---\n{imported_content}\n--- End import ---",
-                1
+                f"@{import_path}", f"\n--- Imported from {import_path} ---\n{imported_content}\n--- End import ---", 1
             )
         except Exception as e:
             logger.warning(f"Failed to import {import_path}: {e}")
-            content = content.replace(
-                match.group(0),
-                f"[Import error: {import_path} - {e}]",
-                1
-            )
+            content = content.replace(match.group(0), f"[Import error: {import_path} - {e}]", 1)
 
         depth += 1
 
