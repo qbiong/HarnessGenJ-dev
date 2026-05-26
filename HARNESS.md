@@ -1,12 +1,22 @@
 # HarnessGenJ-dev
 
-AI 驱动的多角色开发助手，将 HGJ 从 Claude Code 插件改造为独立运行工具。
+> **专门用于软件开发的 AI 多角色协作框架**
+>
+> 集成三大核心理念：对抗式审查（Adversarial Review）、渐进式披露（Progressive Disclosure）、Harness 自我完善（Self-Improvement）
+
+## 三大核心理念
+
+| 理念 | 说明 | 实现方式 |
+|------|------|----------|
+| ⚔️ **对抗式审查** | 代码经多角色对抗审视，杜绝自写自审 | Developer → Reviewer → Bug Hunter 质量闭环 |
+| 📐 **渐进式披露** | 上下文按需分层加载，不一次性塞满窗口 | L1 元数据 (50t) → L2 知识库 (500t) → L3 引用 (按需) |
+| 🔄 **Harness 自我完善** | 经验跨会话积累，团队越用越聪明 | 6 段式知识库模板，任务完成后自动沉淀经验教训 |
 
 ## 项目概况
 
-- **定位**: 独立 AI 开发工具（类似 Claude Code、Cursor、GitHub Copilot CLI）
-- **核心**: 内置 LLM Gateway + Agent ReAct 循环 + 工具集 + Scanner
-- **依赖**: 通过 pip 依赖 `harnessgenj>=1.4.6`（不复制代码）
+- **定位**: 专门用于软件开发的 AI 协作框架（非通用聊天工具）
+- **核心**: LLM Gateway + Agent ReAct 循环 + 7 角色团队 + Harness 知识管理 + Web Dashboard
+- **参考**: OpenClaw（渐进式披露）· Claude Code（SKILL.md）· MetaGPT（多角色 SOP）
 - **Phase 状态**: Phase 1 ✅ | Phase 2 ✅ | Phase 3 ✅ | 测试 752 个 100% 通过 (另有 24 个端到端测试需 API Key 运行)
 
 ## 架构

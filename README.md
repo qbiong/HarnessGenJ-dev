@@ -6,14 +6,17 @@
 </p>
 
 <h1 align="center">HarnessGenJ-dev</h1>
-<p align="center"><strong>你的 AI 开发团队，一个命令即可启动</strong></p>
-<p align="center">项目经理自动调度架构师、开发者、审查员、Bug猎人协同工作<br>
-参考 OpenClaw · Claude Code · MetaGPT 架构设计</p>
+<p align="center">
+  <strong>对抗式审查 &times; 渐进式披露 &times; Harness 自我完善</strong><br>
+  一个专门用于软件开发的 AI 多角色协作框架<br>
+  参考 OpenClaw · Claude Code · MetaGPT 架构设计
+</p>
 
 <p align="center">
+  <a href="#三大核心理念">核心理念</a> •
   <a href="#快速开始">快速开始</a> •
-  <a href="#核心概念">核心概念</a> •
   <a href="#架构">架构</a> •
+  <a href="#角色体系">角色体系</a> •
   <a href="#english">English</a>
 </p>
 
@@ -21,27 +24,66 @@
 
 ## 这是什么？
 
-你给一个需求，HarnessGenJ-dev 自动组建一个 **AI 开发团队**帮你完成——
+HarnessGenJ-dev 是一个**专门用于软件开发的 AI 多角色协作框架**。它不是你日常聊天的 AI 助手——它是一支围绕你的项目组建的 AI 开发团队。
 
-- 🎯 **项目经理** 判断任务类型，自动派发给合适的角色
-- 🏗️ **架构师** 设计系统架构，输出 ADR 决策记录
-- 💻 **开发者** 编写代码、跑测试、记录踩坑经验
-- 🔍 **代码审查员** 检查安全、性能、可维护性
-- 🐛 **Bug猎人** 边界测试、并发竞争、安全漏洞
-- 📝 **文档编写者** 维护 README、API 文档、部署指南
+**只需描述目标，框架自动组建团队、分配角色、协调工作、积累经验。**
 
-**你只需要描述目标，团队自动协作。** 不需要手动分配任务，不需要管理上下文，不需要跟踪进度——框架帮你搞定一切。
+---
+
+## 三大核心理念
+
+<p align="center">
+  <table>
+    <tr>
+      <td align="center" width="33%">
+        <h3>⚔️ 对抗式审查</h3>
+        <p><em>Adversarial Review</em></p>
+      </td>
+      <td align="center" width="33%">
+        <h3>📐 渐进式披露</h3>
+        <p><em>Progressive Disclosure</em></p>
+      </td>
+      <td align="center" width="33%">
+        <h3>🔄 Harness 自我完善</h3>
+        <p><em>Harness Self-Improvement</em></p>
+      </td>
+    </tr>
+    <tr>
+      <td valign="top">
+        代码不是一个人写的，也不是一个人审的。<br><br>
+        开发者写完 → 审查员挑刺 → Bug猎人破坏 → 开发者修复。<br><br>
+        <strong>多角色对抗确保每一行代码都经过多双眼睛的审视。</strong><br><br>
+        <em>单 Agent 自己审自己的代码？那不是审查，那是自我安慰。</em>
+      </td>
+      <td valign="top">
+        不是一次性把全部上下文塞给模型。<br><br>
+        L1 元数据 (50 tokens) → L2 知识库 (500 tokens) → L3 引用文件 (按需)。<br><br>
+        <strong>Agent 按需拉取信息，而不是被动接收信息。</strong><br><br>
+        <em>1M 上下文 ≠ 应该填满 1M 上下文。</em>
+      </td>
+      <td valign="top">
+        每次任务完成，经验教训自动沉淀到知识库。<br><br>
+        下一个任务开始时，Agent 先读知识库，了解历史决策和踩过的坑。<br><br>
+        <strong>项目越做越顺，团队越用越聪明。</strong><br><br>
+        <em>传统工具每次从零开始；Harness 让经验跨会话传承。</em>
+      </td>
+    </tr>
+  </table>
+</p>
+
+---
 
 ### 为什么选择 HarnessGenJ-dev？
 
 | 对比维度 | 单 Agent 工具 | HarnessGenJ-dev |
 |----------|:-----------:|:---------------:|
-| 代码生成 | ✅ 能写 | ✅ **专人写**（Developer） |
-| 架构设计 | ⚠️ 混在代码里 | ✅ **专人设计**（Architect）+ ADR |
-| 代码审查 | ❌ 自己审自己 | ✅ **专人审查**（Reviewer） |
-| Bug 挖掘 | ❌ 测不到 | ✅ **专人破坏**（Bug Hunter） |
-| 知识积累 | ❌ 每次重新扫 | ✅ **6 段式渐进知识库**，越用越聪明 |
-| 团队协作 | ❌ 单人 | ✅ **7 角色协作**，各司其职 |
+| 代码生成 | ✅ 能写 | ✅ **专人写** + 专人审 + 专人测 |
+| 架构设计 | ⚠️ 混在代码里 | ✅ **专人设计**（Architect）+ ADR 追溯 |
+| 代码审查 | ❌ 自己审自己 | ✅ **对抗式审查**（Reviewer vs Developer） |
+| Bug 挖掘 | ❌ 测不到边界 | ✅ **专人破坏**（Bug Hunter）找隐藏缺陷 |
+| 知识积累 | ❌ 每次重新扫项目 | ✅ **Harness 自我完善**，越用越聪明 |
+| 上下文管理 | ❌ 全量塞入 | ✅ **渐进式披露**，按需加载 |
+| 团队协作 | ❌ 单人 | ✅ **7 角色协作**，各司其职，边界清晰 |
 
 ---
 
@@ -209,24 +251,13 @@ MIT
 <a name="english"></a>
 ## English
 
-<h3 align="center">Your AI Dev Team — One Command Away</h3>
+<h3 align="center">Adversarial Review &times; Progressive Disclosure &times; Harness Self-Improvement</h3>
 
-HarnessGenJ-dev is an **AI-powered multi-role development framework**. Give it a requirement, and it assembles a team of specialized AI agents — Project Manager, Architect, Developer, Reviewer, Bug Hunter, and Doc Writer — to collaborate and deliver.
+HarnessGenJ-dev is a **purpose-built AI development framework** — not a general-purpose chatbot. It assembles a team of specialized agents (PM, Architect, Developer, Reviewer, Bug Hunter, Doc Writer) that collaborate under three core principles:
 
-**You describe the goal. The team self-organizes.**
-
-### Why Multi-Role?
-
-Single-agent tools mix architecture, coding, review, and testing in one model — leading to biased reviews, missed edge cases, and lost context. HarnessGenJ-dev separates concerns:
-
-- **Project Manager** orchestrates — never writes code
-- **Architect** designs — never implements
-- **Developer** codes — never makes architecture decisions
-- **Reviewer** audits — never fixes bugs
-- **Bug Hunter** breaks things — never patches them
-- **Doc Writer** documents — never modifies logic
-
-Each role has a **hard boundary** (must_not rules) enforced by the system prompt. Knowledge accumulates across sessions via a **6-section Harness knowledge base** — the team gets smarter with every task.
+- ⚔️ **Adversarial Review** — Every line of code is scrutinized by multiple roles. Developer writes, Reviewer audits, Bug Hunter attacks. No self-review.
+- 📐 **Progressive Disclosure** — Context is loaded on demand in 3 layers (metadata → knowledge base → references), not dumped all at once.
+- 🔄 **Harness Self-Improvement** — After every task, lessons learned are persisted to role-specific knowledge bases. The team gets smarter across sessions.
 
 ### Quick Start
 
