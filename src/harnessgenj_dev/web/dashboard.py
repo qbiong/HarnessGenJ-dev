@@ -453,8 +453,11 @@ body {{
         <div class="chat-messages" id="chat">
             <div class="welcome" id="welcome">
                 <h2>HGJ-dev</h2>
-                <p>AI 驱动的开发助手</p>
-                <p style="margin-top:8px;font-size:12px;color:var(--text-muted);">输入请求开始开发</p>
+                <p>AI 驱动的多角色开发助手</p>
+                <p style="margin-top:8px;font-size:12px;color:var(--text-muted);">输入请求，项目经理将自动调度团队完成任务</p>
+                <div id="no-api-key-hint" style="display:none;margin-top:12px;padding:10px 16px;background:var(--bg-secondary);border:1px solid var(--error);border-radius:var(--radius-sm);font-size:12px;color:var(--text-secondary);">
+                    🔑 尚未配置 API Key。请先 <a href=\"javascript:switchTab('settings')\" style=\"color:var(--accent-cyan);\">在设置中配置</a>，或设置环境变量 <code style=\"color:var(--accent-cyan);\">ANTHROPIC_API_KEY</code>
+                </div>
                 <div id="no-project-hint" style="display:none;margin-top:12px;padding:10px 16px;background:var(--bg-secondary);border:1px solid var(--warning);border-radius:var(--radius-sm);font-size:12px;color:var(--text-secondary);">
                     🚀 尚未配置项目。请先 <a href=\"javascript:switchTab('projects')\" style=\"color:var(--accent-cyan);\">添加项目</a> 或直接告诉 AI 你的项目路径
                 </div>
@@ -1344,7 +1347,20 @@ document.addEventListener('DOMContentLoaded', function() {{
     loadProjectsDropdown();
     if (ACTIVE_TAB === 'projects') loadProjects();
     if (ACTIVE_TAB === 'files') listDir('');
+    // Check API key status
+    checkApiKeyStatus();
 }});
+
+async function checkApiKeyStatus() {{
+    try {{
+        var r = await fetch('/api/status');
+        var data = await r.json();
+        var hint = document.getElementById('no-api-key-hint');
+        if (hint) {{
+            hint.style.display = data.has_api_key ? 'none' : 'block';
+        }}
+    }} catch(e) {{}}
+}}
 
 // ---- File Viewer Modal ----
 var fileModalOverlay = null;
@@ -1502,12 +1518,15 @@ async def lifespan(app: FastAPI):
 
     auto_register()
     app.state.session_manager = SessionManager()
-    # Initialize knowledge files for all registered roles
+    # Initialize knowledge files for roles with active project
     try:
-        from harnessgenj_dev.memory.role_registry import list_roles, init_role_memory
-        for r in list_roles():
-            if r.get("builtin") or not r.get("knowledge_file"):
-                init_role_memory(r["id"])
+        from harnessgenj_dev.projects import get_active_project
+        active = get_active_project()
+        if active and active.get("path"):
+            from harnessgenj_dev.memory.role_registry import list_roles, init_role_memory
+            for r in list_roles():
+                if r.get("knowledge_file"):
+                    init_role_memory(r["id"], project_path=active["path"])
     except Exception:
         pass
     yield
@@ -1521,6 +1540,25 @@ app.router.lifespan_context = lifespan
 # ============================================================
 
 _DEFAULT_TEAM_ROLE = "project_manager"
+
+_KF_MAINTENANCE_PATTERNS = [
+    "更新知识库", "写入知识库", "保存知识库", "记录到知识库",
+    "更新 .project-knowledge", "写入 .project-knowledge",
+    "记录到 .project-knowledge", "知识库已更新", "知识库更新",
+    "update knowledge", "save knowledge",
+    "updating knowledge", "saving knowledge",
+]
+
+
+def _is_kf_maintenance(text: str) -> bool:
+    """Suppress knowledge-file maintenance chatter from user-facing output."""
+    txt = text.lower()
+    if ".project-knowledge" not in txt:
+        return False
+    for pat in _KF_MAINTENANCE_PATTERNS:
+        if pat.lower() in txt:
+            return True
+    return False
 
 
 class _ConfigShim:
@@ -1673,6 +1711,20 @@ class AgentSession:
 
     def _inject_role_memory(self, agent, role: str) -> None:
         pass
+
+    async def _ensure_project(self) -> None:
+        """Auto-create a workspace project if none is active (first-use onboarding)."""
+        try:
+            from harnessgenj_dev.projects import get_active_project, add_project, switch_project
+
+            active = get_active_project()
+            if not active:
+                proj = add_project("MyProject", description="默认项目 — 由 HarnessGenJ-dev 自动创建")
+                switch_project("MyProject")
+                self.project = "MyProject"
+                logger.info("Auto-created default project: MyProject")
+        except Exception:
+            pass
 
     def _build_system_prompt(self, role: str) -> str:
         return self._ensure_agent()._build_system_prompt(role)
@@ -1859,7 +1911,7 @@ class AgentSession:
                 config=_ConfigShim(),
                 effort="high",
             )
-            sub.state.max_iterations = 200
+            sub.state.max_iterations = 50
             # Load per-agent session, keep only essential context
             sub_session = self._get_sub_session(role)
             if sub_session and sub_session.messages:
@@ -1882,7 +1934,8 @@ class AgentSession:
                             "用 list_directory 看项目结构，read_file 读 PROJECT.md，"
                             "将项目信息写入 " + _kf_path + "，然后开始执行任务\n"
                             "3. 如果已有内容，直接基于上下文开始工作\n"
-                            "4. 任务完成后 write_file 更新 " + _kf_path + "\n\n"
+                            "4. **【强制】任务完成后必须 write_file 更新 " + _kf_path + "**，记录本轮工作、文件变更、关键决策\n"
+                            "5. 开始工作前，先 read_file(.project-knowledge/project_status.md) 对齐项目整体进度\n\n"
                         )
                 except Exception:
                     pass
@@ -1893,18 +1946,15 @@ class AgentSession:
                 "Do NOT just describe — actually use the tools.\n\n"
                 + _kf_context + context[:2000]
             )
-            # Stream with buffered output for clean display
+            # Stream output immediately — same behavior as PM, no buffering
             acc = ""
-            buf = ""
             async for chunk in sub.run_stream(task, role=role):
                 acc += chunk
-                if not silent:
-                    buf += chunk
-                    if chunk.strip() and ("\n" in chunk or len(buf) > 40):
-                        clean = chunk.strip()
-                        if clean and not clean.startswith("[Executing") and not clean.startswith("```tool"):
+                if not silent and chunk.strip():
+                    clean = chunk.strip()
+                    if clean and not clean.startswith("[Executing") and not clean.startswith("```tool"):
+                        if not _is_kf_maintenance(clean):
                             await self.send({"type": "text_chunk", "role": role, "content": chunk})
-                        buf = ""
             # Claude Code 3-tier compaction for per-agent memory
             if sub_session:
                 sub_session.messages = self._compact_sub_session(list(sub.state.conversation_history))
@@ -1932,6 +1982,8 @@ class AgentSession:
 
     async def run_develop(self, content: str) -> str | None:
         logger.info("run_develop START: role=%s content=%.50s", self.role, content)
+        # Auto-create project if none active (first-use experience)
+        await self._ensure_project()
         # Persist user message BEFORE any processing (quick_exec or LLM)
         session = self._get_session()
         if not session.messages:
@@ -2113,7 +2165,7 @@ class AgentSession:
                             f"   c. 将了解到的项目信息写入 {kf}\n"
                             f"   d. 然后开始执行本次任务\n"
                             f"3. 如果知识库已有内容，直接基于已有上下文开始工作\n"
-                            f"4. 任务完成后 write_file 更新 {kf}，记录完成的工作和关键决策"
+                            f"4. **【强制】任务完成后必须 write_file 更新 {kf}**，记录：本轮完成的工作、创建/修改了哪些文件、关键决策和理由、待办或阻塞项。这是强制步骤，跳过将导致其他成员基于过时信息工作。"
                         )
                         ctx_parts.insert(0, init_rules)
                 except Exception:
@@ -2125,6 +2177,8 @@ class AgentSession:
                     "Example: to create a file, CALL write_file. To edit, CALL edit_file.\n"
                     "DO NOT just say you will do it — actually CALL the tool.\n\n"
                     "Focus ONLY on your role. Do NOT dispatch other agents.\n"
+                    "Before starting: read the PM's project_status.md (.project-knowledge/project_status.md) and "
+                    "any related role knowledge files to align with the team's current understanding.\n"
                     "When you have COMPLETED all your work (all files written, all changes made), "
                     "end with: ✅ DONE\n"
                     "If the work is NOT complete, end with what remains to be done.\n\n"
@@ -2142,7 +2196,9 @@ class AgentSession:
                         if chunk.strip() and ("\n" in chunk or len(output_buffer) > 40):
                             clean = chunk.strip()
                             if clean and not clean.startswith("[Executing") and not clean.startswith("```tool"):
-                                await self.send({"type": "text_chunk", "role": role, "content": chunk})
+                                # Suppress knowledge-file maintenance noise from user view
+                                if not _is_kf_maintenance(clean):
+                                    await self.send({"type": "text_chunk", "role": role, "content": chunk})
                             output_buffer = ""
                     await self._send_thinking_if_any(sub_agent, role)
                     sub_result = sub_accumulated.strip()
@@ -2519,6 +2575,7 @@ async def api_status():
         "version": "0.1.0-dev",
         "active_connections": len(manager.active_connections),
         "status": "running",
+        "has_api_key": _has_api_key(),
         "metrics": _get_system_metrics(),
     }
 
@@ -2757,13 +2814,21 @@ async def api_add_project(body: dict[str, str]):
     if not name:
         raise HTTPException(400, "name is required")
     if external and path:
-        add_external_project(name, path, description)
+        proj = add_external_project(name, path, description)
     elif path:
-        add_project(name, path, description)
+        proj = add_project(name, path, description)
     else:
-        # No path = auto-create under workspace
-        add_project(name, description=description)
-    return {"status": "added", "name": name}
+        proj = add_project(name, description=description)
+
+    # Generate Harness knowledge file templates for all roles
+    try:
+        from harnessgenj_dev.memory.role_registry import list_roles, init_role_memory
+        for r in list_roles():
+            init_role_memory(r["id"], project_path=proj.path)
+    except Exception:
+        pass
+
+    return {"status": "added", "name": name, "path": proj.path}
 
 
 @app.post("/api/projects/{name}/switch")

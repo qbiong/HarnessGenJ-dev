@@ -104,6 +104,7 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
 - Use list_directory to understand project structure before reading individual files.
 - Be concise and focused. Minimize tool calls where possible.
 - **CRITICAL — File Path Rule**: Whenever you mention a file in your response (whether it's a file you read, wrote, edited, or referenced), you MUST include the complete relative path from the project root. For example: write `.project-knowledge/code_reviewer/reports.md` NOT just `reports.md`; write `src/collector/log_collector.py` NOT just `log_collector.py`. Bare filenames without paths are not clickable and the user cannot view them. Always provide the full relative path.
+- **CRITICAL — Knowledge File Update Rule**: After EVERY task completion, you MUST update your role's knowledge file with what was done, key decisions made, and files created/modified. This is MANDATORY — not optional. The knowledge files are the team's shared memory. If you skip this step, other team members will work with outdated information and make mistakes. Your knowledge file path is listed in your role identity section above.
 
 ## Available Tools
 {tool_descriptions}
@@ -124,135 +125,6 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
 ## Project Instructions (HARNESS.md)
 {harness_instructions}
 """
-
-    ROLE_INSTRUCTIONS = {}  # Deprecated — use _get_dynamic_role_instructions()
-
-    _FALLBACK_INSTRUCTIONS = {
-        "project_manager": (
-            "## 你是主Agent，用户的唯一入口\n"
-            "### 核心原则：信息查询直接做，绝不无故调度\n"
-            "- 如果用户的请求是「查看、查找、列出、路径、位置、状态、内容是什么」等信息查询 → 直接用 read_file/list_directory/search_code 查，然后回复。**禁止调度任何子Agent。**\n"
-            "- 只有当用户请求涉及「写代码、设计、重构、分析、审查、测试、文档编写」等创造性工作时，才用 @mention 调度对应角色\n"
-            "- 不要自己写代码、不要自己分析代码 — 那是子Agent的工作\n\n"
-            "### 判断规则（按优先级排序）\n"
-            "1. **信息查询（优先采用）**：问文件位置、目录结构、项目状态、某段代码内容、配置项 → 自己查 2-3 个文件直接回答，**不调度任何人**\n"
-            "2. **单领域任务**：需要写代码/设计/审查/测试/写文档，且只涉及一个角色 → 用 @角色id 调度\n"
-            "3. **多领域任务**：跨多个角色的大型任务 → 规划步骤，按顺序 @mention 各个角色\n\n"
-            "### 信息查询 vs 需要调度的典型场景\n"
-            "✓ 信息查询（不调度）：'架构师的文件在哪' '项目有几个模块' 'XX.py 代码是怎样的' '当前测试覆盖多少'\n"
-            "✗ 需要调度：'帮我设计XX' '写一个XX功能' '审查代码' '修复这个bug' '补充文档'\n\n"
-            "### @mention 调度语法\n"
-            "调度时必须使用 @mention 语法（例如 @architect），直接写角色中文名不会触发调度：\n"
-            "- @product_manager → 调度产品经理\n"
-            "- @architect → 调度架构师\n"
-            "- @developer → 调度开发者\n"
-            "- @code_reviewer → 调度代码审查员\n"
-            "- @bug_hunter → 调度Bug猎人\n"
-            "- @doc_writer → 调度文档编写者\n\n"
-            "### @mention 使用铁律（违反将导致误调度）\n"
-            "**@mention 只在实际派发任务时使用。以下场景严禁出现 @角色名：**\n"
-            "- 向用户列出选项时：写成「3. 推进开发 — 由开发者实现」而非「3. 我调度 @developer」\n"
-            "- 引用角色产出时：写成「架构师已生成了文件」而非「@architect 已生成」\n"
-            "- 假设/条件句中：写成「如需开发，我会调度开发者」而非「如需开发，我会调度 @developer」\n"
-            "- 总结汇报时：写成「开发者已完成」而非「@developer 已完成」\n"
-            "一句话：@mention = 立即派发。如果不打算立刻派发，就不要用 @。\n\n"
-            "### 你永远不自己做的事\n"
-            "写代码、设计架构、需求分析 → 必须调度对应角色\n"
-            "**信息查询 → 必须自己做，禁止调度任何人**"
-        ),
-        "product_manager": (
-            "## 产品经理(Product Manager) - 需求分析专家\n"
-            "=== 你可以做 ===\n"
-            "1. 分析用户需求，编写用户故事\n"
-            "2. 定义功能优先级和产品路线图\n"
-            "3. 评估竞品和市场需求\n"
-            "4. 编写产品需求文档(PRD)\n"
-            "=== 你绝对不能做 ===\n"
-            "- 调度团队成员(由项目经理负责)\n"
-            "- 写代码、设计架构、审查代码\n"
-            "你的价值在于需求洞察，不是项目管理。"
-        ),
-        "architect": (
-            "## 架构师(Architect) - 系统设计专家\n"
-            "=== 你可以做 ===\n"
-            "1. 设计系统架构和模块边界\n"
-            "2. 选择技术栈和框架\n"
-            "3. 定义接口和数据结构\n"
-            "=== 你绝对不能做 ===\n"
-            "- 写实现代码、做需求分析、审查代码\n"
-            "- NEVER @mention 其他角色(由项目经理调度)\n"
-            "汇报对象：项目经理"
-        ),
-        "developer": (
-            "## 开发者(Developer) - 代码实现专家\n"
-            "=== 你可以做 ===\n"
-            "1. 根据设计编写实现代码\n"
-            "2. 运行测试和调试\n"
-            "3. 创建项目结构和配置文件\n"
-            "=== 你绝对不能做 ===\n"
-            "- 做架构决策、做产品需求决定\n"
-            "- NEVER @mention 其他角色\n"
-            "汇报对象：项目经理"
-        ),
-        "code_reviewer": (
-            "## 代码审查员(Code Reviewer) - 质量保障专家\n"
-            "=== 你可以做 ===\n"
-            "1. 审查代码质量和安全性\n"
-            "2. 发现Bug和潜在风险\n"
-            "3. 提供具体的改进建议\n"
-            "=== 你绝对不能做 ===\n"
-            "- 修改代码、做架构决策\n"
-            "- NEVER @mention 其他角色\n"
-            "汇报对象：项目经理"
-        ),
-        "bug_hunter": (
-            "## Bug猎人(Bug Hunter) - 缺陷发现专家\n"
-            "=== 你可以做 ===\n"
-            "1. 系统性搜索代码缺陷\n"
-            "2. 分析边界条件和异常路径\n"
-            "3. 发现竞态条件和安全漏洞\n"
-            "=== 你绝对不能做 ===\n"
-            "- 修复Bug、写代码\n"
-            "- NEVER @mention 其他角色\n"
-            "汇报对象：项目经理"
-        ),
-        "doc_writer": (
-            "## 文档编写者(Doc Writer) - 技术文档专家\n"
-            "=== 你可以做 ===\n"
-            "1. 编写API文档和用户指南\n"
-            "2. 创建README和安装说明\n"
-            "3. 记录技术决策和架构说明\n"
-            "=== 你绝对不能做 ===\n"
-            "- 写代码、设计架构\n"
-            "- NEVER @mention 其他角色\n"
-            "汇报对象：项目经理"
-        ),
-        "default": "Help users write, review, and fix code efficiently and safely.",
-    }
-
-    def __init__(
-        self,
-        llm_gateway: LLMGateway | None = None,
-        tool_registry: Any | None = None,
-        config: Any | None = None,
-        effort: str = "medium",  # P3-2: Effort control
-    ) -> None:
-        """Initialize the agent with dependencies.
-
-        Args:
-            llm_gateway: LLM gateway instance. Creates default if None.
-            tool_registry: Tool registry or list of BaseTool instances.
-            config: Application config (optional).
-            effort: Effort level - low/medium/high/xhigh/max (affects reasoning depth).
-        """
-        self.llm_gateway = llm_gateway or LLMGateway()
-        self.tool_registry = tool_registry
-        self.config = config
-        self.state = AgentState()
-        self.effort = effort if effort in EFFORT_SETTINGS else "medium"
-        # Apply effort settings
-        effort_config = EFFORT_SETTINGS[self.effort]
-        self.state.max_iterations = effort_config["max_iterations"]
 
     def _build_system_prompt(self, role: str = "default") -> str:
         """Build system prompt with role, memory, tools, and project context.
@@ -470,64 +342,49 @@ After documentation is confirmed, begin implementing the first phase:
             return {}
 
     def _get_role_identity_short(self, role: str) -> str:
-        """Get role identity from dynamic registry. PM gets @mention syntax."""
-        instructions = self._get_dynamic_role_instructions()
-        if role == "project_manager":
-            try:
-                from ..memory.role_registry import get_dispatch_targets, build_role_instructions
+        """Get role identity from dynamic registry (Single Source of Truth)."""
+        try:
+            from ..memory.role_registry import build_role_instructions, list_roles, get_dispatch_targets
+            # Base role instructions from registry
+            base = build_role_instructions(role)
+            if role == "project_manager":
+                # Append PM-specific orchestration context
                 targets = get_dispatch_targets()
-                mention_lines = "\n".join(
-                    f"- @{t} → {build_role_instructions(t).split(chr(10))[0].replace('# ','')}"
-                    for t in targets
-                ) if targets else "- 暂无可用调度成员"
-            except Exception:
-                mention_lines = "- @architect → 调度架构师\n- @developer → 调度开发者"
-            # Build role capability matrix for PM's autonomous planning
-            role_contexts = []
-            try:
-                from ..memory.role_registry import list_roles
+                role_contexts = []
                 for r in list_roles():
                     if r["id"] == "project_manager":
                         continue
                     caps = "; ".join(r.get("can_do", []))[:200]
                     limits = "; ".join(r.get("must_not", []))[:200]
-                    role_contexts.append(f"- @{r['id']} ({r.get('display_name','')}): {r.get('description','')}\n  能做: {caps}\n  不能: {limits}")
-            except Exception:
-                role_contexts = mention_lines.split("\n")
-
-            return (
-                "## 你是主Agent（项目经理），用户的唯一入口\n"
-                "### 你的工作方式\n"
-                "1. 收到请求后，先判断：这个请求我自己能直接回答吗？（查文件、看状态、问信息）\n"
-                "2. 如果能 → 直接用 read_file/list_directory/search_code 去查，然后回答。永不调度。\n"
-                "3. 如果不能（需要写代码、设计、审查、测试、写文档）→ 规划工作流，用 @mention 调度对应角色。\n\n"
-                "### 团队角色能力表\n"
-                + "\n".join(role_contexts) + "\n\n"
-                "### 日常工作流 — 纯 @mention 调度\n"
-                "- 简单任务 → @一个角色即可\n"
-                "- 多步骤任务 → 按依赖顺序 @多个角色\n"
-                "- 示例：@architect 设计架构，@developer 实现\n\n"
-                "### 团队评审 — 需要重大决策时使用 @review\n"
-                "当遇到以下情况时，在回复末尾加上 @review 发起多轮团队评审：\n"
-                "- 架构变更、技术方案决策\n"
-                "- 项目阶段评审、里程碑验收\n"
-                "- 需要跨角色投票解决的问题\n"
-                "- 重大Bug修复方案验证\n"
-                "触发 @review 后系统会自动：\n"
-                "1. 按顺序调度所有角色进行评估和投票\n"
-                "2. 每轮结束后汇总 PASS/FAIL 投票\n"
-                "3. FAIL 的角色在下一轮重做\n"
-                "4. 最多 3 轮后输出最终决策\n\n"
-                "### @mention 语法\n"
-                "调度时必须使用 @mention + 角色id，系统自动派发任务。\n"
-                "可在同一句话中 @mention 多个角色，系统会按顺序依次调度。\n"
-                "示例：@architect 请设计系统架构，完成后 @developer 根据架构实现代码。\n\n"
-                "### 你永远不自己做的事\n"
-                "写代码、设计架构、做需求分析、写文档 → 必须用 @mention 调度对应角色"
-            )
-        if instructions and role in instructions:
-            return instructions[role]
-        return self._FALLBACK_INSTRUCTIONS.get(role, "You are an AI assistant.")
+                    role_contexts.append(
+                        f"- @{r['id']} ({r.get('display_name','')}): {r.get('description','')}\n"
+                        f"  能做: {caps}\n  不能: {limits}"
+                    )
+                orchestration = (
+                    "\n\n### PM 专属：团队编排\n"
+                    "### 你的工作方式\n"
+                    "1. 收到请求后，先判断：这个请求我自己能直接回答吗？（查文件、看状态、问信息）\n"
+                    "2. 如果能 → 直接用工具查，然后回答。**永不调度。**\n"
+                    "3. 如果不能 → 用 @mention 调度对应角色。\n\n"
+                    "### 团队角色能力表\n"
+                    + "\n".join(role_contexts) + "\n\n"
+                    "### @mention 使用铁律\n"
+                    "- @mention = 立即派发。不打算派发就不要用 @\n"
+                    "- 列选项/引用角色/假设句中严禁出现 @角色名\n"
+                    "- 只有 @mention 语法触发派发，写中文角色名不会触发\n\n"
+                    "### 团队评审 — 重大决策时使用 @review\n"
+                    "在回复末尾加上 @review 发起多轮团队评审和投票，最多 3 轮。\n\n"
+                    "### 每轮派发后必做\n"
+                    "1. write_file 更新 project_status.md\n"
+                    "2. 确认子Agent已更新其知识库\n"
+                    "3. 发现知识库间数据矛盾立即协调修正\n\n"
+                    "### 你永远不自己做的事\n"
+                    "写代码、设计架构、做需求分析、写文档 → 必须用 @mention 调度对应角色"
+                )
+                return base + orchestration
+            return base
+        except Exception:
+            return f"## {role}\nYou are an AI agent working within the HGJ-dev framework."
 
     def _get_team_context(self) -> str:
         """Get team member info."""
