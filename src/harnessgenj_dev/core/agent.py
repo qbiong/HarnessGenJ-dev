@@ -469,30 +469,21 @@ After documentation is confirmed, begin implementing the first phase:
                     "- @mention = 立即派发。不打算派发就不要用 @\n"
                     "- 列选项/引用角色/假设句中严禁出现 @角色名\n"
                     "- 只有 @mention 语法触发派发，写中文角色名不会触发\n\n"
-                    "### 团队评审 — 重大决策时使用 @review\n"
-                    "在回复末尾加上 @review 发起多轮团队评审和投票，最多 3 轮。\n\n"
-                    "### 每轮派发后必做\n"
-                    "1. write_file 更新 project_status.md\n"
-                    "2. 确认子Agent已更新其知识库\n"
-                    "3. 发现知识库间数据矛盾立即协调修正\n\n"
-                    "### ⚠️ 关键区分：什么该自己做 vs 什么该调度\n"
-                    "**信息查询**（自己做）：查项目状态、文件位置、进度 → read_file(project_status.md) 直接回答\n"
-                    "**开发工作**（必须调度）：修改文件内容、全局替换、重构、搜索代码、写测试、推代码 → 必须 @mention @developer\n"
-                    "**设计工作**（必须调度）：架构变更、技术选型 → 必须 @mention @architect\n"
-                    "**审查工作**（必须调度）：代码审查、质量检查 → 必须 @mention @code_reviewer\n"
-                    "**简单原则**：只要涉及「改东西」或「找代码中的什么东西」，都是开发工作，不是信息查询。\n"
-                    "**如果你发现自己说了「我来搜索XXX」→ 立刻改为 @developer 请搜索并替换XXX**\n\n"
-                    "### 反幻觉规则 ⚠️（违反将导致系统检测到幻觉）\n"
-                    "**描述计划 ≠ 执行。** 以下行为构成幻觉并被系统标记：\n"
-                    "- 说\"我来全局替换\"但没有实际调用 edit_file/write_file → 幻觉\n"
-                    "- 说\"先搜索文件\"但没有实际调用 search_code/read_file → 幻觉\n"
-                    "- 说\"推送成功\"但刚刚没有调用 run_command(git push) → 幻觉\n"
-                    "- 说\"修复完成\"但没有创建/修改任何文件 → 幻觉\n\n"
-                    "**正确做法**：先调用工具，再报告结果。不要描述计划，不要假装完成。\n"
-                    "如果因为迭代次数限制没做完，如实说\"需要更多轮次\"，不要编造结果。\n\n"
-                    "### 你永远不自己做的事\n"
-                    "写代码、设计架构、做需求分析、写文档、修改文件内容、全局替换、推送代码 → "
-                    "必须用 @mention 调度对应角色。自己描述计划而不调度 = 幻觉。"
+                    "### PM 核心规则\n"
+                    "你的回复必须是以下两种之一：\n\n"
+                    "方式 A（信息查询）：问状态/位置/进度 → 读 1-2 个文件直接回答，不用 @mention\n"
+                    "方式 B（派发任务）：要改文件/写代码/修复/推送 → 第一句就用 @mention 派发对应角色\n\n"
+                    "只要涉及改文件就是方式 B，不是方式 A\n\n"
+                    "### 角色速查\n"
+                    + "\n".join(role_contexts) + "\n\n"
+                    "### @mention 语法\n"
+                    "- @developer → 改文件/搜索/修复/推代码\n"
+                    "- @architect → 设计/技术选型\n"
+                    "- @code_reviewer → 审查代码\n"
+                    "- @bug_hunter → 测试\n"
+                    "- @doc_writer → 写文档\n\n"
+                    "### 自我检查\n"
+                    "如果你写了超过 100 字还没有 @mention → 你在自己干活，删掉重写。"
                 )
                 return base + orchestration
             return base
@@ -768,17 +759,6 @@ After documentation is confirmed, begin implementing the first phase:
             # Check for tool calls
             tool_calls = self._parse_tool_calls(response)
             if not tool_calls:
-                # Anti-hallucination check
-                _c = (response.content or "").lower()
-                _action_verbs = ["搜索", "替换", "重命名", "重构", "修改", "推送", "写入", "编译",
-                                "search", "replace", "rename", "refactor", "push", "write", "compile"]
-                if any(v in _c for v in _action_verbs) and _c.strip():
-                    logger.warning("Anti-hallucination: plan-only response detected in _react_loop")
-                    self.state.conversation_history.append({
-                        "role": "user",
-                        "content": "[系统检测到你在描述工作内容但没有调用任何工具。描述 ≠ 执行。请立即调用实际工具开始执行。]"
-                    })
-                    continue
                 # No tool calls -> we have our final answer
                 logger.info(
                     "ReAct completed after %d iterations",
@@ -940,21 +920,7 @@ After documentation is confirmed, begin implementing the first phase:
             self.state.conversation_history.append(assistant_msg)
 
             if not tool_calls:
-                # Anti-hallucination: check if the model described doing work but didn't call tools
-                _content = accumulated_content.lower()
-                _action_verbs = ["搜索", "替换", "重命名", "重构", "修改", "推送", "写入", "编译",
-                                "search", "replace", "rename", "refactor", "push", "write", "compile",
-                                "execute"]
-                _hallucinated = any(v in _content for v in _action_verbs)
-                if _hallucinated and accumulated_content.strip():
-                    logger.warning("Anti-hallucination: model described work without calling tools. %s",
-                                   accumulated_content[:100])
-                    self.state.conversation_history.append({
-                        "role": "user",
-                        "content": "[系统检测到你在描述工作内容但没有调用任何工具。描述 ≠ 执行。请立即调用实际工具开始执行，不要继续描述计划。]"
-                    })
-                    continue  # Don't terminate - force another iteration with tools
-                # No tool calls + no action verbs -> genuinely done
+                # No tool calls -> done
                 yield "\n"
                 return
 
