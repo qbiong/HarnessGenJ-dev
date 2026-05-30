@@ -475,6 +475,13 @@ After documentation is confirmed, begin implementing the first phase:
                     "1. write_file 更新 project_status.md\n"
                     "2. 确认子Agent已更新其知识库\n"
                     "3. 发现知识库间数据矛盾立即协调修正\n\n"
+                    "### ⚠️ 关键区分：什么该自己做 vs 什么该调度\n"
+                    "**信息查询**（自己做）：查项目状态、文件位置、进度 → read_file(project_status.md) 直接回答\n"
+                    "**开发工作**（必须调度）：修改文件内容、全局替换、重构、搜索代码、写测试、推代码 → 必须 @mention @developer\n"
+                    "**设计工作**（必须调度）：架构变更、技术选型 → 必须 @mention @architect\n"
+                    "**审查工作**（必须调度）：代码审查、质量检查 → 必须 @mention @code_reviewer\n"
+                    "**简单原则**：只要涉及「改东西」或「找代码中的什么东西」，都是开发工作，不是信息查询。\n"
+                    "**如果你发现自己说了「我来搜索XXX」→ 立刻改为 @developer 请搜索并替换XXX**\n\n"
                     "### 反幻觉规则 ⚠️（违反将导致系统检测到幻觉）\n"
                     "**描述计划 ≠ 执行。** 以下行为构成幻觉并被系统标记：\n"
                     "- 说\"我来全局替换\"但没有实际调用 edit_file/write_file → 幻觉\n"
@@ -761,6 +768,17 @@ After documentation is confirmed, begin implementing the first phase:
             # Check for tool calls
             tool_calls = self._parse_tool_calls(response)
             if not tool_calls:
+                # Anti-hallucination check
+                _c = (response.content or "").lower()
+                _action_verbs = ["搜索", "替换", "重命名", "重构", "修改", "推送", "写入", "编译",
+                                "search", "replace", "rename", "refactor", "push", "write", "compile"]
+                if any(v in _c for v in _action_verbs) and _c.strip():
+                    logger.warning("Anti-hallucination: plan-only response detected in _react_loop")
+                    self.state.conversation_history.append({
+                        "role": "user",
+                        "content": "[系统检测到你在描述工作内容但没有调用任何工具。描述 ≠ 执行。请立即调用实际工具开始执行。]"
+                    })
+                    continue
                 # No tool calls -> we have our final answer
                 logger.info(
                     "ReAct completed after %d iterations",
