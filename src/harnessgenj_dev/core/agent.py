@@ -922,7 +922,21 @@ After documentation is confirmed, begin implementing the first phase:
             self.state.conversation_history.append(assistant_msg)
 
             if not tool_calls:
-                # No tool calls -> done
+                # Anti-hallucination: check if the model described doing work but didn't call tools
+                _content = accumulated_content.lower()
+                _action_verbs = ["搜索", "替换", "重命名", "重构", "修改", "推送", "写入", "编译",
+                                "search", "replace", "rename", "refactor", "push", "write", "compile",
+                                "execute"]
+                _hallucinated = any(v in _content for v in _action_verbs)
+                if _hallucinated and accumulated_content.strip():
+                    logger.warning("Anti-hallucination: model described work without calling tools. %s",
+                                   accumulated_content[:100])
+                    self.state.conversation_history.append({
+                        "role": "user",
+                        "content": "[系统检测到你在描述工作内容但没有调用任何工具。描述 ≠ 执行。请立即调用实际工具开始执行，不要继续描述计划。]"
+                    })
+                    continue  # Don't terminate - force another iteration with tools
+                # No tool calls + no action verbs -> genuinely done
                 yield "\n"
                 return
 
