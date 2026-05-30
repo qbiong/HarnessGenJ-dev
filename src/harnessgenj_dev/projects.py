@@ -23,6 +23,7 @@ class Project:
     name: str
     path: str
     description: str = ""
+    github_url: str = ""
     is_external: bool = False
     created_at: float = field(default_factory=time.time)
     last_accessed: float = field(default_factory=time.time)
@@ -51,6 +52,7 @@ class ProjectManager:
         name: str,
         path: str | Path | None = None,
         description: str = "",
+        github_url: str = "",
         is_external: bool = False,
         metadata: dict[str, Any] | None = None,
     ) -> Project:
@@ -60,6 +62,7 @@ class ProjectManager:
             name: Project identifier.
             path: Filesystem path. If None, auto-creates under workspace/<name>.
             description: Human-readable description.
+            github_url: GitHub repository URL (optional).
             is_external: True if this is an existing external project.
             metadata: Optional extra metadata.
         """
@@ -78,6 +81,7 @@ class ProjectManager:
             name=name,
             path=str(resolved.resolve()),
             description=description,
+            github_url=github_url,
             is_external=is_external,
             metadata=metadata or {},
         )
@@ -138,6 +142,7 @@ class ProjectManager:
                 "name": p.name,
                 "path": p.path,
                 "description": p.description,
+                "github_url": p.github_url,
                 "is_external": p.is_external,
                 "created_at": p.created_at,
                 "last_accessed": p.last_accessed,
@@ -159,6 +164,7 @@ class ProjectManager:
                 name=info["name"],
                 path=info["path"],
                 description=info.get("description", ""),
+                github_url=info.get("github_url", ""),
                 is_external=info.get("is_external", True),
                 created_at=info.get("created_at", time.time()),
                 last_accessed=info.get("last_accessed", time.time()),
@@ -177,6 +183,7 @@ def get_projects() -> list[dict[str, Any]]:
             "name": p.name,
             "path": p.path,
             "description": p.description,
+            "github_url": p.github_url,
             "is_external": p.is_external,
             "active": _mgr._active_project == p.name,
         }
@@ -191,6 +198,7 @@ def get_active_project() -> dict[str, Any] | None:
             "name": p.name,
             "path": p.path,
             "description": p.description,
+            "github_url": p.github_url,
             "is_external": p.is_external,
             "active": True,
         }
@@ -201,14 +209,15 @@ def add_project(
     name: str,
     path: str | None = None,
     description: str = "",
+    github_url: str = "",
 ) -> Project:
     """Register a new project. If path is None, creates under workspace/<name>."""
-    return _mgr.add_project(name=name, path=path or None, description=description)
+    return _mgr.add_project(name=name, path=path or None, description=description, github_url=github_url)
 
 
-def add_external_project(name: str, path: str, description: str = "") -> Project:
+def add_external_project(name: str, path: str, description: str = "", github_url: str = "") -> Project:
     """Register an existing external project by path."""
-    return _mgr.add_project(name=name, path=path, description=description, is_external=True)
+    return _mgr.add_project(name=name, path=path, description=description, github_url=github_url, is_external=True)
 
 
 def switch_project(name: str) -> Project:

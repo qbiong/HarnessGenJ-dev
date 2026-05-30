@@ -198,7 +198,7 @@ body {{
 }}
 
 /* Section display */
-.tab-section {{ display: none; width: 100%; height: 100%; overflow: hidden; }}
+.tab-section {{ display: none; width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; }}
 .tab-section.active {{ display: flex; flex-direction: column; }}
 
 /* ============ Chat View ============ */
@@ -489,6 +489,10 @@ body {{
                     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">描述 (可选，可由AI自动生成)</div>
                     <input id="pdesc" placeholder="项目描述" style="width:100%;" />
                 </div>
+                <div style="flex:1;min-width:200px;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">GitHub URL (可选)</div>
+                    <input id="pgithub" placeholder="https://github.com/user/repo" style="width:100%;" />
+                </div>
                 <button class="btn btn-send" onclick="addProject()" style="align-self:flex-end;margin-bottom:1px;">新建</button>
             </div>
             <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">不填路径将自动在 workspace 目录中创建</div>
@@ -504,6 +508,9 @@ body {{
                 </div>
                 <div style="flex:2;min-width:200px;">
                     <input id="epdesc" placeholder="描述 (可选)" style="width:100%;" />
+                </div>
+                <div style="flex:1;min-width:200px;">
+                    <input id="epgithub" placeholder="GitHub URL (可选)" style="width:100%;" />
                 </div>
                 <button class="btn btn-secondary" onclick="addExternalProject()" style="align-self:flex-end;margin-bottom:1px;">打开外部项目</button>
             </div>
@@ -1165,15 +1172,17 @@ async function loadProjects() {{
             el.innerHTML = '<p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">暂无项目 — 使用下方表单新建项目或打开已有项目</p>';
             return;
         }}
-        var html = '<table class="projects-table"><tr><th>名称</th><th>路径</th><th>类型</th><th>描述</th><th>状态</th><th>操作</th></tr>';
+        var html = '<table class="projects-table"><tr><th>名称</th><th>路径</th><th>GitHub</th><th>类型</th><th>描述</th><th>状态</th><th>操作</th></tr>';
         for (var p of data.projects) {{
             var typeTag = p.is_external ? '<span style=\"color:var(--accent-cyan);font-size:10px;\">📂 外部</span>' : '<span style=\"color:var(--success);font-size:10px;\">🏠 工作区</span>';
             var desc = p.description || '<span style=\"color:var(--text-muted);font-size:10px;\">无描述</span>';
+            var github = p.github_url ? '<a href=\"' + escapeHtml(p.github_url) + '\" target=\"_blank\" style=\"color:var(--accent-cyan);font-size:10px;font-family:var(--font-mono);\">🔗</a>' : '<span style=\"color:var(--text-muted);font-size:10px;\">—</span>';
             var activeBadge = p.active ? ' style=\"background:var(--bg-tertiary)\"' : '';
             var switchBtn = p.active ? '<span style=\"color:var(--success);font-size:11px;\">✓ 当前</span>' : '<button class=\"btn btn-secondary\" style=\"padding:3px 8px;font-size:11px;background:var(--accent-cyan);color:#000;border:none;\" onclick=\"switchProject(\\''+escapeHtml(p.name)+'\\')\">切换</button>';
             html += '<tr' + activeBadge + '>';
             html += '<td style=\"font-weight:600;\">' + escapeHtml(p.name) + '</td>';
             html += '<td style=\"font-size:11px;font-family:var(--font-mono);\">' + escapeHtml(p.path) + '</td>';
+            html += '<td style=\"text-align:center;\">' + github + '</td>';
             html += '<td>' + typeTag + '</td>';
             html += '<td style=\"font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\">' + desc + '</td>';
             html += '<td>' + (p.active ? '当前' : '') + '</td>';
@@ -1189,11 +1198,13 @@ async function loadProjects() {{
 async function addProject() {{
     var name = document.getElementById('pname').value.trim();
     var desc = document.getElementById('pdesc').value.trim();
+    var github = document.getElementById('pgithub').value.trim();
     if (!name) {{ alert('请输入项目名称'); return; }}
-    var body = {{name: name, description: desc}};
+    var body = {{name: name, description: desc, github_url: github}};
     await fetch('/api/projects', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify(body)}});
     document.getElementById('pname').value = '';
     document.getElementById('pdesc').value = '';
+    document.getElementById('pgithub').value = '';
     loadProjects();
     loadProjectsDropdown();
 }}
@@ -1202,12 +1213,14 @@ async function addExternalProject() {{
     var name = document.getElementById('epname').value.trim();
     var path = document.getElementById('eppath').value.trim();
     var desc = document.getElementById('epdesc').value.trim();
+    var github = document.getElementById('epgithub').value.trim();
     if (!name || !path) {{ alert('请输入项目名称和路径'); return; }}
-    var body = {{name: name, path: path, description: desc, is_external: true}};
+    var body = {{name: name, path: path, description: desc, is_external: true, github_url: github}};
     await fetch('/api/projects', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify(body)}});
     document.getElementById('epname').value = '';
     document.getElementById('eppath').value = '';
     document.getElementById('epdesc').value = '';
+    document.getElementById('epgithub').value = '';
     loadProjects();
     loadProjectsDropdown();
 }}
@@ -1251,13 +1264,8 @@ async function listDir(path) {{
 }}
 
 async function viewFile(path) {{
-    try {{
-        var r = await fetch('/api/files/content?path=' + encodeURIComponent(path));
-        var data = await r.json();
-        var v = document.getElementById('file-viewer');
-        v.textContent = data.is_binary ? '[Binary file]' : (data.content || '');
-        v.style.display = 'block';
-    }} catch(e) {{}}
+    // Use the full-featured file viewer modal (supports markdown, syntax highlighting)
+    openFileViewer(path);
 }}
 
 // ---- Settings ----
@@ -1545,8 +1553,9 @@ _KF_MAINTENANCE_PATTERNS = [
     "更新知识库", "写入知识库", "保存知识库", "记录到知识库",
     "更新 .project-knowledge", "写入 .project-knowledge",
     "记录到 .project-knowledge", "知识库已更新", "知识库更新",
-    "update knowledge", "save knowledge",
-    "updating knowledge", "saving knowledge",
+    "update .project-knowledge", "write .project-knowledge",
+    "save .project-knowledge", "update knowledge", "save knowledge",
+    "updating knowledge", "saving knowledge", "knowledge updated",
 ]
 
 
@@ -1608,13 +1617,38 @@ class AgentSession:
         return mgr.get_session(self.project + "/sub/" + role, self._sub_sessions[role])
 
     @staticmethod
+    def _repair_conversation(history: list[dict]) -> list[dict]:
+        """Remove orphaned tool messages that lack a preceding assistant with matching tool_calls."""
+        repaired = []
+        for m in history:
+            if m.get("role") == "tool":
+                tid = m.get("tool_call_id", "")
+                has_parent = False
+                # Search backwards for assistant with matching tool_call id
+                for p in reversed(repaired):
+                    if p.get("role") == "assistant":
+                        for tc in p.get("tool_calls", []):
+                            if tc.get("id") == tid:
+                                has_parent = True
+                                break
+                        if has_parent:
+                            break
+                if not has_parent:
+                    logger.warning("_repair_conversation: dropping orphan tool msg id=%.20s", tid)
+                    continue
+            repaired.append(m)
+        return repaired
+
+    @staticmethod
     def _compact_sub_session(history: list[dict], max_keep: int = 12) -> list[dict]:
         """Claude Code 3-tier compaction for per-agent independent memory.
 
+        Tier 0 (Repair):   Remove orphaned tool messages without matching assistant tool_calls.
         Tier 1 (Micro-compact): Truncate tool results older than last 5, keep structure.
         Tier 2 (Collapse):   Merge consecutive assistant-only messages.
         Tier 3 (Summarize):  When > max_keep, keep system + last exchange + decision markers.
         """
+        history = AgentSession._repair_conversation(history)
         if len(history) <= max_keep:
             return list(history)
 
@@ -1915,6 +1949,8 @@ class AgentSession:
             # Load per-agent session, keep only essential context
             sub_session = self._get_sub_session(role)
             if sub_session and sub_session.messages:
+                # Repair: remove any orphaned tool messages before loading
+                sub_session.messages = self._repair_conversation(sub_session.messages)
                 essential = [m for m in sub_session.messages if m.get("role") == "system"]
                 if len(sub_session.messages) >= 2:
                     essential += sub_session.messages[-2:]
@@ -2007,7 +2043,10 @@ class AgentSession:
         try:
             # Stream PM output so user sees real-time progress
             if self.role == "project_manager":
-                agent.state.max_iterations = 200
+                # Cap at 15 iterations to prevent excessive pre-dispatch file reading.
+                # PM should: read project_status.md (1-2) + search_code (1) + read one ref (1) = 3-5 calls,
+                # then generate response. 15 is generous even for complex status reports.
+                agent.state.max_iterations = 15
             else:
                 agent.state.max_iterations = min(agent.state.max_iterations, 3)
             accumulated = ""
@@ -2078,7 +2117,89 @@ class AgentSession:
                 "doc_writer": "文档编写者",
             }
 
-    async def _dispatch_mentions(self, pm_text: str, user_request: str) -> str:
+    async def _classify_mentions(
+        self, pm_text: str, mentions: list[str], dispatch_roles: list[dict]
+    ) -> list[str]:
+        """Use LLM to classify each @mention as DISPATCH or conversational reference.
+
+        Returns filtered list of role IDs that should actually be dispatched.
+        """
+        import re
+        from harnessgenj_dev.llm.gateway import LLMGateway
+
+        if len(mentions) == 0:
+            return []
+
+        # Extract context for each mention
+        mention_contexts = []
+        for m in mentions:
+            pos = pm_text.find("@" + m)
+            sent_start = max(pm_text.rfind("\n", 0, pos), pm_text.rfind("。", 0, pos), 0)
+            sent_end = pm_text.find("\n", pos)
+            if sent_end < 0:
+                sent_end = len(pm_text)
+            ctx = pm_text[max(0, sent_start - 50):min(len(pm_text), sent_end + 50)]
+            role_display = self._ROLE_DISPLAY.get(m, m)
+            mention_contexts.append(f"[{m}] {role_display}: {ctx.strip()}")
+
+        classifier_prompt = (
+            "You are a dispatch intent classifier. For each @mention below, classify whether "
+            "the Project Manager INTENDS TO DISPATCH the agent RIGHT NOW, or is merely "
+            "referencing the agent in conversation (asking a question, listing options, "
+            "summarizing past work, making a suggestion, or using @mention rhetorically).\n\n"
+            "Rules:\n"
+            "- DISPATCH: PM is giving a direct command/instruction to the agent.\n"
+            "  Example: '@developer 请实现XX功能' '@architect 请设计XX'\n"
+            "- REFERENCE: PM is asking the user a question, listing options, summarizing, "
+            "or using @mention in any non-imperative context.\n"
+            "  Example: '需要我调度 @developer 吗？' '由 @architect 完成的设计' "
+            "'可以选择 @developer 或者 @code_reviewer'\n\n"
+            "Respond with ONLY a JSON array. No other text.\n"
+            'Format: [{"role": "developer", "intent": "DISPATCH"}, {"role": "architect", "intent": "REFERENCE"}]\n\n'
+            + "\n".join(mention_contexts)
+        )
+
+        logger.info("_classify_mentions: starting LLM classification for %d mentions: %s", len(mentions), mentions)
+        try:
+            gw = LLMGateway(
+                provider=_get_provider(),
+                model=_get_model(),
+                api_key=_get_api_key(),
+                base_url=_get_base_url() or None,
+            )
+            resp = await asyncio.wait_for(
+                gw.chat(
+                    messages=[{"role": "user", "content": classifier_prompt}],
+                    model=_get_model(),
+                    temperature=0.0,
+                    max_tokens=200,
+                ),
+                timeout=10,
+            )
+            logger.info("_classify_mentions: classification response received")
+            content = (resp.content or "").strip()
+            json_match = re.search(r"\[.*\]", content, re.DOTALL)
+            if json_match:
+                decisions = json.loads(json_match.group(0))
+                dispatch_list = []
+                for d in decisions:
+                    role = d.get("role", "")
+                    intent = d.get("intent", "REFERENCE")
+                    if intent.upper() == "DISPATCH" and role in mentions:
+                        dispatch_list.append(role)
+                        logger.info("_classify_mentions: @%s → DISPATCH", role)
+                    else:
+                        logger.info("_classify_mentions: @%s → REFERENCE (skipped)", role)
+                return dispatch_list
+        except asyncio.TimeoutError:
+            logger.warning("_classify_mentions: timed out after 10s, dispatching all mentions")
+        except Exception as exc:
+            logger.warning("_classify_mentions: LLM classification failed, falling back: %s", exc)
+
+        # Fallback: if classification fails, dispatch all (safe default)
+        return mentions
+
+    async def _dispatch_mentions(self, pm_text: str, user_request: str, _round: int = 1, _max_rounds: int = 3) -> str:
         """PM dispatches @mentioned agents, collects results, synthesizes summary.
         Only PM dispatches; agents report findings back to PM.
         """
@@ -2095,10 +2216,11 @@ class AgentSession:
         # @mention pattern: match all registered role IDs
         role_ids = "|".join(r["id"] for r in dispatch_roles)
         mentions = re.findall(r"@(" + role_ids + r")", pm_text) if role_ids else []
-        # Note: removed Chinese-style display name matching — it caused false
-        # positives when PM naturally referenced roles in conversation (e.g.
-        # "架构师生成了文件" triggered an unwanted architect dispatch).
-        # PM must use explicit @mention syntax to dispatch sub-agents.
+        # LLM-based intent classification: is each @mention a real dispatch or
+        # a conversational reference (question / suggestion / option list / report)?
+        if mentions:
+            mentions = await self._classify_mentions(pm_text, mentions, dispatch_roles)
+
         # Check for team review request
         if "@review" in pm_text.replace("@review", "@review") or "团队评审" in pm_text or "投票" in pm_text:
             logger.info("_dispatch_mentions: PM requested team review via @review")
@@ -2132,6 +2254,8 @@ class AgentSession:
                 # Load per-agent persistent session (JVM thread-local memory pattern)
                 sub_session = self._get_sub_session(role)
                 if sub_session and sub_session.messages:
+                    # Repair: remove any orphaned tool messages before loading
+                    sub_session.messages = self._repair_conversation(sub_session.messages)
                     # Only load system prompt + last exchange, not full history
                     essential = [m for m in sub_session.messages if m.get("role") in ("system",)]
                     if len(sub_session.messages) >= 2:
@@ -2179,6 +2303,9 @@ class AgentSession:
                     "Focus ONLY on your role. Do NOT dispatch other agents.\n"
                     "Before starting: read the PM's project_status.md (.project-knowledge/project_status.md) and "
                     "any related role knowledge files to align with the team's current understanding.\n"
+                    "READING LIMIT: You may read at most 3 files for context. After reading 3 files "
+                    "you MUST start writing code. Reading more than 3 files without writing any code "
+                    "will be detected as incomplete work. Start coding early, iterate.\n"
                     "When you have COMPLETED all your work (all files written, all changes made), "
                     "end with: ✅ DONE\n"
                     "If the work is NOT complete, end with what remains to be done.\n\n"
@@ -2209,29 +2336,27 @@ class AgentSession:
                             await self.send({"type": "text_chunk", "role": role, "content": "[重新调度: 该角色上次无输出]\n"})
                             task_prompt += "\n\n[PM反馈: 你上一次没有输出任何内容。这次请直接调用工具开始工作。]"
                             continue
-                    # PM checks: is work actually done?
-                    confirm_prompt = (
-                        "## 原任务\n" + user_request[:500]
-                        + "\n\n## " + role_display + " 输出\n" + sub_result[:1200]
-                        + "\n\n作为项目经理，严格判断该角色的工作是否真正完成？\n"
-                        + "考虑是否有实际的文件创建/修改证据。\n"
-                        + "回复 DONE 或 REDO:具体意见。"
+                    # Code-level check: did the sub-agent actually write or edit files?
+                    has_file_write = any(
+                        tc.get("function", {}).get("name") in ("write_file", "edit_file")
+                        for m in sub_agent.state.conversation_history
+                        for tc in m.get("tool_calls", [])
                     )
-                    try:
-                        confirm_resp = await asyncio.wait_for(
-                            LLMGateway(provider=_get_provider(), model=_get_model(), api_key=_get_api_key(), base_url=_get_base_url() or None).chat(
-                                messages=[{"role": "user", "content": confirm_prompt}], model=_get_model()
-                            ),
-                            timeout=60,
-                        )
-                        decision = (confirm_resp.content or "").strip().upper()
-                    except Exception:
+                    if has_file_write:
                         decision = "DONE"
+                        logger.info("_dispatch_mentions: %s file-write detected → DONE", role)
+                    else:
+                        decision = "REDO:没有检测到任何文件创建/修改操作，请直接开始编写代码，不要再读文件"
+                        logger.info("_dispatch_mentions: %s no file-write → REDO", role)
+
                     if decision == "DONE" or (decision.startswith("DONE") and "REDO" not in decision):
+                        # Send sub-agent final_answer first, then PM confirmation
+                        if sub_result and sub_result != "(无输出)":
+                            await self.send({"type": "final_answer", "role": role, "content": sub_result})
                         await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": role_display + " ✅ 工作完成。"})
                         break
                     else:
-                        correction = confirm_resp.content.replace("REDO", "").replace(":", "").strip() if confirm_resp and confirm_resp.content else "请继续工作"
+                        correction = decision.replace("REDO", "").replace(":", "").strip()
                         await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": role_display + " 需要继续: " + correction[:300]})
                         task_prompt += "\n\n## PM反馈\n" + correction[:500]
                 # Compact and save
@@ -2282,8 +2407,28 @@ class AgentSession:
                 gw.chat(messages=[{"role": "user", "content": body}], model=_get_model()),
                 timeout=180,
             )
-            logger.info("_dispatch_mentions: synthesis complete")
-            return resp.content or "团队工作完成。"
+            logger.info("_dispatch_mentions: synthesis complete (round %d/%d)", _round, _max_rounds)
+            synthesis = resp.content or "团队工作完成。"
+            # Multi-round dispatch: check if synthesis instructs new actions
+            if _round < _max_rounds:
+                try:
+                    from ..memory.role_registry import list_roles
+                    all_roles = list_roles()
+                    dispatch_roles = [r for r in all_roles if not r.get("is_coordinator")]
+                    role_ids = "|".join(r["id"] for r in dispatch_roles)
+                    new_mentions = re.findall(r"@(" + role_ids + r")", synthesis) if role_ids else []
+                    if new_mentions:
+                        logger.info("_dispatch_mentions: round %d -> %d (new mentions from synthesis: %s)",
+                                    _round, _round + 1, new_mentions)
+                        # Recurse with synthesis as the PM text for the next round
+                        next_round = await self._dispatch_mentions(
+                            synthesis, user_request, _round=_round + 1, _max_rounds=_max_rounds
+                        )
+                        if next_round:
+                            return next_round
+                except Exception:
+                    logger.exception("_dispatch_mentions: multi-round check failed")
+            return synthesis
         except asyncio.TimeoutError:
             logger.warning("_dispatch_mentions: synthesis timed out after 180s")
             fb = "## 团队工作完成 (合成超时)\n\n"
@@ -2810,15 +2955,16 @@ async def api_add_project(body: dict[str, str]):
     name = body.get("name", "").strip()
     path = body.get("path", "").strip()
     description = body.get("description", "").strip()
+    github_url = body.get("github_url", "").strip()
     external = body.get("is_external", False)
     if not name:
         raise HTTPException(400, "name is required")
     if external and path:
-        proj = add_external_project(name, path, description)
+        proj = add_external_project(name, path, description, github_url=github_url)
     elif path:
-        proj = add_project(name, path, description)
+        proj = add_project(name, path, description, github_url=github_url)
     else:
-        proj = add_project(name, description=description)
+        proj = add_project(name, description=description, github_url=github_url)
 
     # Generate Harness knowledge file templates for all roles
     try:
@@ -2876,6 +3022,23 @@ async def api_switch_session(session_id: str, project: str = "default"):
     if mgr.set_active(project, session_id):
         return {"session_id": session_id, "status": "switched"}
     raise HTTPException(404, f"Session '{session_id}' not found")
+
+
+@app.patch("/api/projects/{name}")
+async def api_update_project(name: str, body: dict[str, str]):
+    """Update project fields (e.g. github_url). AI agents can call this."""
+    from harnessgenj_dev.projects import _mgr
+
+    proj = _mgr.get_project(name)
+    if not proj:
+        raise HTTPException(404, f"Project '{name}' not found")
+    if "github_url" in body:
+        proj.github_url = body["github_url"].strip()
+        _mgr._save()
+    if "description" in body:
+        proj.description = body["description"].strip()
+        _mgr._save()
+    return {"status": "updated", "name": name, "github_url": proj.github_url}
 
 
 @app.post("/api/sessions/reset")

@@ -70,6 +70,22 @@ class Agent:
     Terminates when LLM produces no tool calls or max_iterations reached.
     """
 
+    def __init__(
+        self,
+        llm_gateway: LLMGateway | None = None,
+        tool_registry: Any | None = None,
+        config: Any | None = None,
+        effort: str = "medium",
+    ) -> None:
+        """Initialize the agent with dependencies."""
+        self.llm_gateway = llm_gateway or LLMGateway()
+        self.tool_registry = tool_registry
+        self.config = config
+        self.state = AgentState()
+        self.effort = effort if effort in EFFORT_SETTINGS else "medium"
+        effort_config = EFFORT_SETTINGS[self.effort]
+        self.state.max_iterations = effort_config["max_iterations"]
+
     SYSTEM_PROMPT_TEMPLATE = """You are running inside HarnessGenJ-dev, an AI-driven development framework (similar to Claude Code / OpenClaw). You are an AI agent dispatched by this framework to help users with software development tasks.
 
 ## Your Identity
@@ -103,8 +119,14 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
 - For large projects: use search_code to find relevant code instead of reading files one by one.
 - Use list_directory to understand project structure before reading individual files.
 - Be concise and focused. Minimize tool calls where possible.
+- **ANTI-HALLUCINATION**: Describe what you DID, not what you WILL do. If you haven't called a tool yet, you haven't done the work. Saying "I will..." without a corresponding tool call is hallucination. Always call the tool first, then report the result.
 - **CRITICAL — File Path Rule**: Whenever you mention a file in your response (whether it's a file you read, wrote, edited, or referenced), you MUST include the complete relative path from the project root. For example: write `.project-knowledge/code_reviewer/reports.md` NOT just `reports.md`; write `src/collector/log_collector.py` NOT just `log_collector.py`. Bare filenames without paths are not clickable and the user cannot view them. Always provide the full relative path.
 - **CRITICAL — Knowledge File Update Rule**: After EVERY task completion, you MUST update your role's knowledge file with what was done, key decisions made, and files created/modified. This is MANDATORY — not optional. The knowledge files are the team's shared memory. If you skip this step, other team members will work with outdated information and make mistakes. Your knowledge file path is listed in your role identity section above.
+- **Karpathy Coding Guidelines** (applies to all code-producing roles):
+  1. **Think Before Coding** — State assumptions explicitly. If uncertain, ASK. Present tradeoffs, don't hide confusion. Push back when a simpler approach exists.
+  2. **Simplicity First** — Minimum code to solve the problem. No speculative features, no abstractions for single-use code, no error handling for impossible scenarios. If 200 lines can be 50, rewrite.
+  3. **Surgical Changes** — Touch only what you must. Don't \"improve\" adjacent code. Match existing style. Every changed line must trace to the user's request.
+  4. **Goal-Driven Execution** — Turn tasks into verifiable goals. \"Fix the bug\" → \"Write a test that reproduces it, then fix.\" Loop until verified. Strong criteria let you work independently.
 
 ## Available Tools
 {tool_descriptions}
@@ -138,6 +160,9 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
         # Get memory-based context (role identity + team + shared knowledge)
         memory_context = self._get_memory_block(role)
 
+        # Progressive Disclosure: build knowledge index (L1 metadata ~300 tokens)
+        knowledge_index = self._build_knowledge_index()
+
         # Get tool descriptions
         tool_schemas = get_schemas()
         if tool_schemas:
@@ -165,6 +190,15 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
             root = getattr(self.config, "project_root", None) or getattr(self.config, "project_path", None)
             if root:
                 root_str = os.path.abspath(str(root))
+                # Get GitHub URL from active project
+                github_url = ""
+                try:
+                    from ..projects import get_active_project
+                    active = get_active_project()
+                    if active:
+                        github_url = active.get("github_url", "")
+                except Exception:
+                    pass
                 project_context = (
                     f"## Workspace Boundary\n"
                     f"User project directory: {root_str}\n"
@@ -174,9 +208,14 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
                     f"Do NOT modify framework files under har-genj_dev/.\n"
                     f"All operations are within the user's project directory.\n"
                     f'When users say "this project", they mean THEIR project at "{root_str}".\n'
-                    f"Project knowledge base:\n"
+                    + (f"GitHub repository: {github_url}\n" if github_url else "")
+                    + f"Project knowledge base:\n"
                     f"- PROJECT.md — 项目概述、架构决策、关键约定\n"
-                    f"- project_status.md — 实时进度跟踪表（✅完成/🔄进行中/⏳待开始/❌阻塞）"
+                    f"- project_status.md — 实时进度跟踪表（✅完成/🔄进行中/⏳待开始/❌阻塞）\n"
+                    f"- 如需更新 GitHub URL，使用 write_file 或 PATCH /api/projects/<name> 接口"
+                    + (f"\n\n### 渐进式知识索引（共 {knowledge_index['count']} 个文件）\n"
+                       f"先读索引了解可用文件，再按需读取具体文件。禁止逐个 read_file 扫描：\n"
+                       + knowledge_index["index"])
                 )
 
         # Role identity summary (short version for prompt)
@@ -198,6 +237,50 @@ You are NOT HarnessGenJ-dev itself. You are an AI agent working within the HGJ-d
             onboarding_instructions=onboarding_instructions,
             user_title_instruction=f"称呼约定：所有团队成员在交流时称呼用户为「{user_title}」。不要使用PM、老板或其他称呼，统一使用「{user_title}」。",
         )
+
+    def _build_knowledge_index(self) -> dict[str, Any]:
+        """Build a lightweight knowledge index (L1 metadata ~300 tokens).
+
+        Scans .project-knowledge/ and returns a compact TOC so agents
+        know what files exist without reading them all.
+        """
+        import json
+        from pathlib import Path
+
+        proj_root = None
+        if self.config:
+            root = getattr(self.config, "project_root", None) or getattr(self.config, "project_path", None)
+            if root:
+                proj_root = Path(str(root))
+        if proj_root and proj_root.exists():
+            kf_dir = proj_root / ".project-knowledge"
+            entries = []
+            if kf_dir.exists():
+                for f in sorted(kf_dir.rglob("*")):
+                    if f.is_file() and f.suffix in (".md", ".json", ".yaml", ".yml", ".txt"):
+                        rel = f.relative_to(kf_dir)
+                        size = f.stat().st_size
+                        label = str(rel)
+                        if f.name == "project_status.md":
+                            label += " (✅ 项目全局进度，信息查询先读此文件)"
+                        elif "adr" in str(rel).lower():
+                            label += " (📐 架构决策记录)"
+                        elif f.name == "design.md":
+                            label += " (🏗️ 架构设计)"
+                        elif f.name == "requirements.md":
+                            label += " (📋 产品需求)"
+                        elif f.name == "notes.md":
+                            label += " (💻 开发者经验记录)"
+                        elif f.name == "reports.md":
+                            label += " (🔍 审查报告)"
+                        elif f.name == "findings.md":
+                            label += " (🐛 Bug 发现记录)"
+                        elif f.name == "docs.md":
+                            label += " (📝 文档状态)"
+                        entries.append(f"- {label} ({size // 100 + 1}00B)")
+            if entries:
+                return {"count": len(entries), "index": "\n".join(entries)}
+        return {"count": 0, "index": ""}
 
     def _get_onboarding_instructions(self) -> str:
         """Generate project initialization instructions for empty projects."""
@@ -368,6 +451,20 @@ After documentation is confirmed, begin implementing the first phase:
                     "3. 如果不能 → 用 @mention 调度对应角色。\n\n"
                     "### 团队角色能力表\n"
                     + "\n".join(role_contexts) + "\n\n"
+                    "### 渐进式知识索引（3 层加载，禁止预扫描）\n"
+                    "系统提示词中已注入「渐进式知识索引」，列出了所有知识库文件的名称、大小和用途。\n"
+                    "**禁止逐个 read_file 扫描项目目录。** 用法：\n"
+                    "1. L1 索引：看索引就知道每个文件是干什么的（已注入，不需要再 read_file）\n"
+                    "2. L2 关键文件：需要详情时，只读 1-2 个关键文件（如 project_status.md）\n"
+                    "3. L3 引用文件：只有需要时才按需读取\n\n"
+                    "### 派发前工具调用约束 ⚠️\n"
+                    "**决定要 @mention 派发后，最多允许 3 次工具调用用于收集上下文：**\n"
+                    "1. `read_file(.project-knowledge/project_status.md)` — 必须，了解全局状态\n"
+                    "2. `read_file(...)` 或 `search_code(...)` — 可选，只读 1 个关键文件\n"
+                    "3. 第 3 次用于确认后立即输出 @mention\n"
+                    "**超限后果**：系统将强制终止你的思考循环并输出已有内容。不要试图提前读更多文件。\n"
+                    "**禁止**：在派发前读取源代码文件（.py/.js/.ts）、测试文件（test_*）、配置文件（.yaml/.json）。\n"
+                    "**替代方案**：需要了解代码时，使用 `search_code` 搜索关键字（1 次调用），不要逐个 read_file。\n\n"
                     "### @mention 使用铁律\n"
                     "- @mention = 立即派发。不打算派发就不要用 @\n"
                     "- 列选项/引用角色/假设句中严禁出现 @角色名\n"
@@ -378,8 +475,17 @@ After documentation is confirmed, begin implementing the first phase:
                     "1. write_file 更新 project_status.md\n"
                     "2. 确认子Agent已更新其知识库\n"
                     "3. 发现知识库间数据矛盾立即协调修正\n\n"
+                    "### 反幻觉规则 ⚠️（违反将导致系统检测到幻觉）\n"
+                    "**描述计划 ≠ 执行。** 以下行为构成幻觉并被系统标记：\n"
+                    "- 说\"我来全局替换\"但没有实际调用 edit_file/write_file → 幻觉\n"
+                    "- 说\"先搜索文件\"但没有实际调用 search_code/read_file → 幻觉\n"
+                    "- 说\"推送成功\"但刚刚没有调用 run_command(git push) → 幻觉\n"
+                    "- 说\"修复完成\"但没有创建/修改任何文件 → 幻觉\n\n"
+                    "**正确做法**：先调用工具，再报告结果。不要描述计划，不要假装完成。\n"
+                    "如果因为迭代次数限制没做完，如实说\"需要更多轮次\"，不要编造结果。\n\n"
                     "### 你永远不自己做的事\n"
-                    "写代码、设计架构、做需求分析、写文档 → 必须用 @mention 调度对应角色"
+                    "写代码、设计架构、做需求分析、写文档、修改文件内容、全局替换、推送代码 → "
+                    "必须用 @mention 调度对应角色。自己描述计划而不调度 = 幻觉。"
                 )
                 return base + orchestration
             return base
@@ -777,10 +883,15 @@ After documentation is confirmed, begin implementing the first phase:
             except Exception as exc:
                 error_str = str(exc)[:200]
                 logger.exception("LLM stream failed: %s", error_str)
-                if accumulated_content:
-                    yield "\n"  # Already have some content, finish gracefully
+                if "timeout" in error_str.lower() or "timed out" in error_str.lower():
+                    user_msg = "\n[DeepSeek API 响应超时，请重试]\n"
+                elif "rate" in error_str.lower() or "429" in error_str:
+                    user_msg = "\n[请求频率过高，请稍后重试]\n"
+                elif "401" in error_str or "403" in error_str:
+                    user_msg = "\n[API Key 无效或权限不足]\n"
                 else:
-                    yield f"\n[Agent stream error: {error_str}]\n"
+                    user_msg = f"\n[Agent stream error: {error_str}]\n"
+                yield ("\n" + user_msg) if accumulated_content else user_msg
                 return
 
             # Tool calls: use structured ones if available, else parse from content

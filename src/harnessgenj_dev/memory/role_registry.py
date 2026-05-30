@@ -245,6 +245,12 @@ _BUILTIN_ROLES: dict[str, dict[str, Any]] = {
             "修复 @bug_hunter 标记的 Bug",
             "更新 developer/notes.md：记录实现决策、经验教训、踩坑记录",
         ],
+        "coding_principles": [
+            "1. Think Before Coding — 先陈述假设，不确定就问，展示权衡而非隐藏困惑",
+            "2. Simplicity First — 用最少代码解决问题，不推测性加功能，200行能写成50行就重写",
+            "3. Surgical Changes — 只改必须改的，不\"改进\"相邻代码，匹配现有风格，每行改动都要能追溯到用户请求",
+            "4. Goal-Driven Execution — 将任务转化为可验证目标（\"修Bug\"→\"写复现测试→修复→验证\"），循环直到通过",
+        ],
         "must_not": [
             "做架构决策 → 技术选型和接口设计是 @architect 的工作",
             "做产品需求决定 → 功能优先级是 @product_manager 的工作",
@@ -557,6 +563,12 @@ def build_role_instructions(role_id: str) -> str:
     can = role.get("can_do", [])
     must_not = role.get("must_not", [])
     anti = role.get("anti_rationalization", [])
+
+    coding_principles = role.get("coding_principles", [])
+    if coding_principles:
+        lines.append("\n### 🧠 Karpathy 编码原则（所有代码产出必须遵守）")
+        for item in coding_principles:
+            lines.append(f"- {item}")
 
     if can:
         lines.append("\n### ✅ 你可以做")

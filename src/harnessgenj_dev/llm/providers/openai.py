@@ -6,6 +6,8 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
+import httpx
+
 from ..models import LLMResponse, StreamChunk, UsageReport
 from .base import BaseProvider
 
@@ -48,7 +50,10 @@ class OpenAIProvider(BaseProvider):
         except ImportError:
             raise RuntimeError("openai SDK not installed. Run: pip install openai")
 
-        kwargs: dict[str, Any] = {"api_key": self.api_key or None}
+        kwargs: dict[str, Any] = {
+            "api_key": self.api_key or None,
+            "timeout": httpx.Timeout(60.0, connect=15.0, read=120.0, write=30.0),
+        }
         if self.base_url:
             kwargs["base_url"] = self.base_url
 
