@@ -425,68 +425,52 @@ After documentation is confirmed, begin implementing the first phase:
             return {}
 
     def _get_role_identity_short(self, role: str) -> str:
-        """Get role identity from dynamic registry (Single Source of Truth)."""
+        """Progressive disclosure: L1 metadata only for coordinator, full instructions for others.
+
+        PM gets short ID + orchestration rules (~1200 chars).
+        Sub-agents get full build_role_instructions when dispatched via _run_sub_agent.
+        """
         try:
-            from ..memory.role_registry import build_role_instructions, list_roles, get_dispatch_targets
-            # Base role instructions from registry
-            base = build_role_instructions(role)
+            from ..memory.role_registry import get_role
+            rc = get_role(role)
+            if not rc:
+                return f"## {role}\nYou are an AI agent."
+            # L1 metadata: always inject (name + description + knowledge file)
+            lines = [
+                f"## {rc.get('display_name', role)}（{role}）",
+                rc.get('description', ''),
+            ]
+            kf = rc.get('knowledge_file', '')
+            if kf:
+                lines.append(f"📁 知识库：`{kf}`")
             if role == "project_manager":
-                # Append PM-specific orchestration context
-                targets = get_dispatch_targets()
-                role_contexts = []
+                lines += [
+                    "",
+                    "### 你的工作方式",
+                    "方式 A（信息查询）：问状态/位置/进度 → 读 1-2 个文件直接回答",
+                    "方式 B（派发任务）：改文件/写代码/修复/推送 → 第一句就用 @mention",
+                    "只要涉及改文件就是方式 B，不是方式 A",
+                    "",
+                    "### 角色速查",
+                ]
+                from ..memory.role_registry import list_roles
                 for r in list_roles():
-                    if r["id"] == "project_manager":
+                    if r['id'] == 'project_manager':
                         continue
-                    caps = "; ".join(r.get("can_do", []))[:200]
-                    limits = "; ".join(r.get("must_not", []))[:200]
-                    role_contexts.append(
-                        f"- @{r['id']} ({r.get('display_name','')}): {r.get('description','')}\n"
-                        f"  能做: {caps}\n  不能: {limits}"
-                    )
-                orchestration = (
-                    "\n\n### PM 专属：团队编排\n"
-                    "### 你的工作方式\n"
-                    "1. 收到请求后，先判断：这个请求我自己能直接回答吗？（查文件、看状态、问信息）\n"
-                    "2. 如果能 → 直接用工具查，然后回答。**永不调度。**\n"
-                    "3. 如果不能 → 用 @mention 调度对应角色。\n\n"
-                    "### 团队角色能力表\n"
-                    + "\n".join(role_contexts) + "\n\n"
-                    "### 渐进式知识索引（3 层加载，禁止预扫描）\n"
-                    "系统提示词中已注入「渐进式知识索引」，列出了所有知识库文件的名称、大小和用途。\n"
-                    "**禁止逐个 read_file 扫描项目目录。** 用法：\n"
-                    "1. L1 索引：看索引就知道每个文件是干什么的（已注入，不需要再 read_file）\n"
-                    "2. L2 关键文件：需要详情时，只读 1-2 个关键文件（如 project_status.md）\n"
-                    "3. L3 引用文件：只有需要时才按需读取\n\n"
-                    "### 派发前工具调用约束 ⚠️\n"
-                    "**决定要 @mention 派发后，最多允许 3 次工具调用用于收集上下文：**\n"
-                    "1. `read_file(.project-knowledge/project_status.md)` — 必须，了解全局状态\n"
-                    "2. `read_file(...)` 或 `search_code(...)` — 可选，只读 1 个关键文件\n"
-                    "3. 第 3 次用于确认后立即输出 @mention\n"
-                    "**超限后果**：系统将强制终止你的思考循环并输出已有内容。不要试图提前读更多文件。\n"
-                    "**禁止**：在派发前读取源代码文件（.py/.js/.ts）、测试文件（test_*）、配置文件（.yaml/.json）。\n"
-                    "**替代方案**：需要了解代码时，使用 `search_code` 搜索关键字（1 次调用），不要逐个 read_file。\n\n"
-                    "### @mention 使用铁律\n"
-                    "- @mention = 立即派发。不打算派发就不要用 @\n"
-                    "- 列选项/引用角色/假设句中严禁出现 @角色名\n"
-                    "- 只有 @mention 语法触发派发，写中文角色名不会触发\n\n"
-                    "### PM 核心规则\n"
-                    "你的回复必须是以下两种之一：\n\n"
-                    "方式 A（信息查询）：问状态/位置/进度 → 读 1-2 个文件直接回答，不用 @mention\n"
-                    "方式 B（派发任务）：要改文件/写代码/修复/推送 → 第一句就用 @mention 派发对应角色\n\n"
-                    "只要涉及改文件就是方式 B，不是方式 A\n\n"
-                    "### 角色速查\n"
-                    + "\n".join(role_contexts) + "\n\n"
-                    "### @mention 语法\n"
-                    "- @developer → 改文件/搜索/修复/推代码\n"
-                    "- @architect → 设计/技术选型\n"
-                    "- @code_reviewer → 审查代码\n"
-                    "- @bug_hunter → 测试\n"
-                    "- @doc_writer → 写文档\n\n"
-                    "### 自我检查\n"
-                    "如果你写了超过 100 字还没有 @mention → 你在自己干活，删掉重写。"
-                )
-                return base + orchestration
-            return base
+                    lines.append(f"- @{r['id']} → {r.get('description','')[:80]}")
+                lines += [
+                    "",
+                    "### @mention 语法",
+                    "- @developer → 改文件/搜索/修复/推代码",
+                    "- @architect → 设计/技术选型",
+                    "- @code_reviewer → 审查代码",
+                    "- @bug_hunter → 测试",
+                    "- @doc_writer → 写文档",
+                    "",
+                    "### 自我检查",
+                    "超过 100 字还没有 @mention → 你在自己干活，删掉重写。",
+                ]
+            return "\n".join(lines)
         except Exception:
             return f"## {role}\nYou are an AI agent working within the HGJ-dev framework."
 

@@ -1976,7 +1976,11 @@ class AgentSession:
                 except Exception:
                     pass
 
+            # Inject full role instructions (L2 progressive disclosure)
+            from ..memory.role_registry import build_role_instructions
+            _role_instructions = build_role_instructions(role)
             task = (
+                _role_instructions + "\n\n"
                 "你是" + self._ROLE_DISPLAY.get(role, role) + "。EXECUTE the task.\n"
                 "CRITICAL: You have file/code tools. CALL them to do the work.\n"
                 "Do NOT just describe — actually use the tools.\n\n"
@@ -2061,6 +2065,10 @@ class AgentSession:
                     accumulated = "分析出错: " + str(exc)[:200]
             await self._send_thinking_if_any(agent, self.role)
             accumulated = accumulated.strip()
+            # Anti-monologue: if PM wrote >200 chars without any @mention, rewrite
+            if self.role == "project_manager" and len(accumulated) > 200 and "@" not in accumulated:
+                logger.warning("PM monologue detected (%d chars, no @mention). Forcing dispatch.", len(accumulated))
+                accumulated = "该任务需要执行开发操作，已调度 @developer 处理。\n\n@developer 请执行以下任务：\n" + content[:500]
             if accumulated:
                 self._append_and_save(self.role, accumulated, "final_answer")
                 await self.send({"type": "text_chunk", "content": accumulated, "role": self.role})
@@ -2294,7 +2302,11 @@ class AgentSession:
                         ctx_parts.insert(0, init_rules)
                 except Exception:
                     pass
+                # Inject full role instructions (L2 progressive disclosure)
+                from ..memory.role_registry import build_role_instructions
+                _role_full = build_role_instructions(role)
                 task_prompt = (
+                    _role_full + "\n\n"
                     "You are the " + role_display + ". EXECUTE the task, don't just describe it.\n\n"
                     "CRITICAL: You have tools (write_file, edit_file, run_command, etc). "
                     "You MUST call these tools to actually DO the work.\n"
