@@ -1548,6 +1548,16 @@ async def lifespan(app: FastAPI):
                     init_role_memory(r["id"], project_path=active["path"])
     except Exception:
         pass
+
+    # Register built-in event handlers
+    try:
+        _hm = get_hook_manager()
+        _hm.register("agent_dispatch", lambda **kw: logger.info("EVENT agent_dispatch: role=%(role)s status=%(status)s", kw), is_async=False)
+        _hm.register("error", lambda **kw: logger.warning("EVENT error: %(error)s context=%(context)s", kw), is_async=False)
+        _hm.register("phase_transition", lambda **kw: logger.info("EVENT phase_transition: %(from_phase)s -> %(to_phase)s", kw), is_async=False)
+        logger.info("Event handlers registered: agent_dispatch, error, phase_transition")
+    except Exception:
+        pass
     yield
 
 
@@ -2281,6 +2291,11 @@ class AgentSession:
             role_display = self._ROLE_DISPLAY.get(role, role)
             await self.send({"type": "agent_dispatch", "role": role, "role_display": role_display, "status": "started"})
             try:
+                try:
+                    from ..plugins import get_hook_manager
+                    await get_hook_manager().fire("agent_dispatch", role=role, role_display=role_display, status="started")
+                except Exception:
+                    pass
                 sub_agent = Agent(
                     llm_gateway=LLMGateway(
                         provider=_get_provider(),
