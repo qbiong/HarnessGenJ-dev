@@ -2485,29 +2485,31 @@ class AgentSession:
                 })
                 agent_results[role] = "(error)"
 
-        # Gather results from parallel rounds
+        # Gather results: parallel dispatch by dependency rounds
         agent_results = {}
-        if _round1:
-            r1 = await asyncio.gather(*[_dispatch_one(r, {}) for r in _round1])
-            for r, res in zip(_round1, r1):
-                agent_results[r] = res or "(无输出)"
-        if _round2:
-            r2 = await asyncio.gather(*[_dispatch_one(r, agent_results) for r in _round2])
-            for r, res in zip(_round2, r2):
-                agent_results[r] = res or "(无输出)"
+        try:
+            if _round1:
+                r1 = await asyncio.gather(*[_dispatch_one(r, {}) for r in _round1])
+                for r, res in zip(_round1, r1):
+                    agent_results[r] = res or "(无输出)"
+            if _round2:
+                r2 = await asyncio.gather(*[_dispatch_one(r, agent_results) for r in _round2])
+                for r, res in zip(_round2, r2):
+                    agent_results[r] = res or "(无输出)"
+        except Exception as _exc:
+            logger.exception("_dispatch_mentions: dispatch failed: %s", _exc)
 
-        # Phase advancement: check gates and try to advance
+        # Phase advancement: check gates and advance if possible
         _phase_advanced = ""
         try:
             if _ps and session:
-                _ctx = {"project_path": _get_proj_path() or "",
-                        "agent_results": agent_results}
+                _ctx = {"project_path": _get_proj_path() or "", "agent_results": agent_results}
                 _new_phase = await _ps.advance(_ctx)
                 if _new_phase:
                     _phase_advanced = _new_phase
                     session.metadata["phase_state"] = _ps.to_dict()
                     self._get_session_mgr().save(session)
-                    logger.info("Phase advanced: %s -> %s", _ps.phase_history[-1]["from"] if _ps.phase_history else "?", _new_phase)
+                    logger.info("Phase advanced: -> %s", _new_phase)
         except Exception:
             pass
 
