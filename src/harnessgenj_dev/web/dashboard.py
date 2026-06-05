@@ -1663,25 +1663,29 @@ class AgentSession:
 
     @staticmethod
     def _repair_conversation(history: list[dict]) -> list[dict]:
-        """Remove orphaned tool messages that lack a preceding assistant with matching tool_calls."""
+        """Repair conversation history for API compatibility.
+
+        1. Remove orphan tool messages (no preceding assistant with matching tool_call_id)
+        2. Strip tool_calls from trailing assistant if no tool results follow
+           (prevents 'assistant with tool_calls without tool results' API error)
+        """
         repaired = []
         for m in history:
             if m.get("role") == "tool":
                 tid = m.get("tool_call_id", "")
-                has_parent = False
-                # Search backwards for assistant with matching tool_call id
-                for p in reversed(repaired):
-                    if p.get("role") == "assistant":
-                        for tc in p.get("tool_calls", []):
-                            if tc.get("id") == tid:
-                                has_parent = True
-                                break
-                        if has_parent:
-                            break
+                has_parent = any(
+                    p.get("role") == "assistant" and any(tc.get("id") == tid for tc in p.get("tool_calls", []))
+                    for p in reversed(repaired)
+                )
                 if not has_parent:
                     logger.warning("_repair_conversation: dropping orphan tool msg id=%.20s", tid)
                     continue
             repaired.append(m)
+        # Strip tool_calls from trailing assistant (saved mid-iteration, no tool results yet)
+        if repaired and repaired[-1].get("role") == "assistant" and repaired[-1].get("tool_calls"):
+            logger.warning("_repair_conversation: stripping tool_calls from trailing assistant (%d pending)",
+                           len(repaired[-1]["tool_calls"]))
+            repaired[-1]["tool_calls"] = []
         return repaired
 
     @staticmethod
@@ -1994,11 +1998,21 @@ class AgentSession:
             # Load per-agent session, keep only essential context
             sub_session = self._get_sub_session(role)
             if sub_session and sub_session.messages:
-                # Repair: remove any orphaned tool messages before loading
+                # Preserve context: take last 4 msgs + their parent assistants for tool msgs
                 sub_session.messages = self._repair_conversation(sub_session.messages)
                 essential = [m for m in sub_session.messages if m.get("role") == "system"]
-                if len(sub_session.messages) >= 2:
-                    essential += sub_session.messages[-2:]
+                tail = sub_session.messages[-4:]
+                for m in tail:
+                    if m.get("role") == "tool":
+                        tid = m.get("tool_call_id", "")
+                        parent = None
+                        for p in reversed(sub_session.messages):
+                            if p.get("role") == "assistant" and any(tc.get("id") == tid for tc in p.get("tool_calls", [])):
+                                parent = p
+                                break
+                        if parent and parent not in essential:
+                            essential.append(parent)
+                    essential.append(m)
                 sub.state.conversation_history = essential
 
                 # Inject knowledge file with initialization rules
@@ -2110,10 +2124,8 @@ class AgentSession:
                     accumulated = "分析出错: " + str(exc)[:200]
             await self._send_thinking_if_any(agent, self.role)
             accumulated = accumulated.strip()
-            # Anti-monologue: if PM wrote >200 chars without any @mention, rewrite
-            if self.role == "project_manager" and len(accumulated) > 200 and "@" not in accumulated:
-                logger.warning("PM monologue detected (%d chars, no @mention). Forcing dispatch.", len(accumulated))
-                accumulated = "该任务需要执行开发操作，已调度 @developer 处理。\n\n@developer 请执行以下任务：\n" + content[:500]
+            # Note: anti-monologue check removed — it falsely flagged valid status reports.
+            # Hallucination prevention is handled at the engine level (_react_loop) and prompt level.
             if accumulated:
                 self._append_and_save(self.role, accumulated, "final_answer")
                 await self.send({"type": "text_chunk", "content": accumulated, "role": self.role})
@@ -2337,13 +2349,21 @@ class AgentSession:
                 # Load per-agent persistent session (JVM thread-local memory pattern)
                 sub_session = self._get_sub_session(role)
                 if sub_session and sub_session.messages:
-                    # Repair: remove any orphaned tool messages before loading
+                    # Preserve context: take last 4 msgs + their parent assistants for tool msgs
                     sub_session.messages = self._repair_conversation(sub_session.messages)
-                    # Only load system prompt + last exchange, not full history
                     essential = [m for m in sub_session.messages if m.get("role") in ("system",)]
-                    if len(sub_session.messages) >= 2:
-                        essential.append(sub_session.messages[-2])
-                        essential.append(sub_session.messages[-1])
+                    for m in sub_session.messages[-4:]:
+                        if m.get("role") == "tool":
+                            tid = m.get("tool_call_id", "")
+                            parent = next(
+                                (p for p in reversed(sub_session.messages)
+                                 if p.get("role") == "assistant"
+                                 and any(tc.get("id") == tid for tc in p.get("tool_calls", []))),
+                                None
+                            )
+                            if parent and parent not in essential:
+                                essential.append(parent)
+                        essential.append(m)
                     sub_agent.state.conversation_history = essential
                     logger.info("_dispatch_mentions: loaded %d essential msgs for %s (from %d total)",
                                len(essential), role, len(sub_session.messages))
