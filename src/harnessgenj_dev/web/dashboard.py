@@ -2336,6 +2336,37 @@ class AgentSession:
                     "If the work is NOT complete, end with what remains to be done.\n\n"
                     + "\n".join(ctx_parts)
                 )
+                # Create SprintContract with success criteria (ClawTeam-inspired)
+                from harnessgenj_dev.core.contracts import SprintContract, SuccessCriterion
+                _contract = SprintContract(
+                    title=f"{role_display}: {user_request[:80]}",
+                    role=role,
+                    project_path=_get_proj_path() or "",
+                    success_criteria=[
+                        SuccessCriterion(
+                            description=f"{role_display} produced working code/files",
+                            test_command="",
+                            expected_file="",
+                        ),
+                    ],
+                )
+                # Add role-specific criteria
+                if role == "developer":
+                    _contract.success_criteria.append(
+                        SuccessCriterion(description="Tests pass", test_command="python -m pytest tests/ -x --tb=short -q 2>&1 | tail -3")
+                    )
+                elif role == "code_reviewer":
+                    _contract.success_criteria.append(
+                        SuccessCriterion(description="Review report created", expected_file=".project-knowledge/code_reviewer/reports.md")
+                    )
+                elif role == "architect":
+                    _contract.success_criteria.append(
+                        SuccessCriterion(description="Design doc created", expected_file=".project-knowledge/architect/design.md")
+                    )
+                # Inject success criteria into task prompt
+                _criteria_text = "\n".join(f"- ✅ {c.description}" for c in _contract.success_criteria)
+                task_prompt += f"\n\n### 验收条件（完成后逐条验证）\n{_criteria_text}\n"
+                _contract.status = "in_progress"
                 # PM-supervised loop: dispatch → review → done/redo
                 sub_result = ""
                 for _dispatch_try in range(5):  # safety limit, normally breaks on DONE
@@ -2384,6 +2415,18 @@ class AgentSession:
                         correction = decision.replace("REDO", "").replace(":", "").strip()
                         await self.send({"type": "agent_response", "role": "project_manager", "role_display": "项目经理", "content": role_display + " 需要继续: " + correction[:300]})
                         task_prompt += "\n\n## PM反馈\n" + correction[:500]
+                # Verify SprintContract success criteria
+                try:
+                    _results = await _contract.verify_all()
+                    _summary = _contract.summary()
+                    if _contract.status == "completed":
+                        sub_result += "\n\n" + _summary
+                    else:
+                        sub_result += "\n\n" + _summary
+                    logger.info("_dispatch_one: %s contract %s (%d/%d)", role, _contract.status,
+                                sum(1 for c in _results if c.verified), len(_results))
+                except Exception as _exc:
+                    logger.warning("_dispatch_one: contract verification failed: %s", _exc)
                 # Compact and save
                 agent_results[role] = sub_result
                 if sub_session:
@@ -2391,6 +2434,7 @@ class AgentSession:
                     sub_session.messages = self._compact_sub_session(full_history)
                     self._get_session_mgr().save(sub_session)
                 self._append_and_save(role, sub_result[:500], "final_answer")
+                return sub_result
             except asyncio.TimeoutError:
                 logger.warning("_dispatch_mentions: %s timed out after 180s", role)
                 await self.send({
