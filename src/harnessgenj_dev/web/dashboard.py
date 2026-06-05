@@ -543,7 +543,7 @@ body {{
     <div class="settings-container">
         <h2>角色配置与新增</h2>
         <div class="settings-section">
-            <h3>当前团队角色</h3>
+            <h3>当前团队角色 <button class="btn btn-secondary" style="padding:2px 10px;font-size:10px;margin-left:8px;" onclick="reloadRoles()">🔄 刷新</button></h3>
             <div id="roles-list" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px;"></div>
         </div>
         <div class="settings-section">
@@ -707,6 +707,13 @@ async function deleteRole(roleId) {{
     if (!confirm('确定删除角色 ' + roleId + '？')) return;
     try {{
         await fetch('/api/roles/' + roleId, {{method:'DELETE'}});
+        loadRoles();
+    }} catch(e) {{ console.error(e); }}
+}}
+
+async function reloadRoles() {{
+    try {{
+        await fetch('/api/roles/reload', {{method:'POST'}});
         loadRoles();
     }} catch(e) {{ console.error(e); }}
 }}
@@ -3086,6 +3093,14 @@ async def api_create_role(body: dict[str, str]):
     save_role(role_id, config)
     mem_path = init_role_memory(role_id)
     return {"status": "created", "role": config, "memory_path": mem_path}
+
+
+@app.post("/api/roles/reload")
+async def api_reload_roles():
+    """Force-reload all role definitions from disk."""
+    from harnessgenj_dev.memory.role_registry import invalidate_cache
+    invalidate_cache()
+    return {"status": "reloaded"}
 
 
 @app.delete("/api/roles/{role_id}")

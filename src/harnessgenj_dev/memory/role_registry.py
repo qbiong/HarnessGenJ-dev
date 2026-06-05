@@ -24,6 +24,17 @@ logger = logging.getLogger(__name__)
 
 ROLES_DIR: Path = Path.home() / ".hgj-dev" / "roles"
 
+# Hot-reload cache
+_cache_mtimes: dict[str, float] = {}
+_cache_dirty: bool = True
+
+
+def invalidate_cache() -> None:
+    """Force next list_roles() to re-read from disk."""
+    global _cache_dirty
+    _cache_dirty = True
+
+
 # ============================================================
 # Knowledge File Template (6-section Harness Pattern)
 # ============================================================
@@ -406,6 +417,16 @@ def _ensure_dir() -> None:
 def list_roles() -> list[dict[str, Any]]:
     """List all available roles (built-in + user-defined)."""
     _ensure_dir()
+    # Hot-reload: re-read from disk if cache is dirty
+    global _cache_mtimes, _cache_dirty
+    if _cache_dirty:
+        _cache_dirty = False
+        _cache_mtimes = {}
+        for f in ROLES_DIR.glob("*.json"):
+            try:
+                _cache_mtimes[f.name] = f.stat().st_mtime
+            except Exception:
+                pass
     roles = {}
 
     # Load built-in defaults
