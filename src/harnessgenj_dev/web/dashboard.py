@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import subprocess
 import logging
 import os
 import time
@@ -75,6 +76,16 @@ def _get_model() -> str:
 def _get_base_url() -> str:
     settings = _load_settings()
     return settings.get("base_url", "").strip()
+
+
+def _get_proj_path() -> str | None:
+    """Get active project root path."""
+    try:
+        from harnessgenj_dev.projects import get_active_project
+        active = get_active_project()
+        return active["path"] if active else None
+    except Exception:
+        return None
 
 
 def _has_api_key() -> bool:
@@ -2237,16 +2248,18 @@ class AgentSession:
         if not mentions:
             return ""
 
-        seen = set()
-        agent_results = {}
-        for role in mentions:
-            if role in seen:
-                continue
-            seen.add(role)
+        # Parallel dispatch by dependency rounds
+        from ..memory.role_registry import get_role as _grc
+        _round1, _round2 = [], []
+        for _r in mentions:
+            _cfg = _grc(_r)
+            _deps = _cfg.get("depends_on", []) if _cfg else []
+            _needs = any(_d for _d in _deps if any(_rm in _d for _rm in mentions))
+            (_round2 if _needs else _round1).append(_r)
 
+        async def _dispatch_one(role: str, prev: dict) -> str:
             role_display = self._ROLE_DISPLAY.get(role, role)
             await self.send({"type": "agent_dispatch", "role": role, "role_display": role_display, "status": "started"})
-
             try:
                 sub_agent = Agent(
                     llm_gateway=LLMGateway(
@@ -2393,10 +2406,37 @@ class AgentSession:
                 })
                 agent_results[role] = "(error)"
 
+        # Gather results from parallel rounds
+        agent_results = {}
+        if _round1:
+            r1 = await asyncio.gather(*[_dispatch_one(r, {}) for r in _round1])
+            for r, res in zip(_round1, r1):
+                agent_results[r] = res or "(无输出)"
+        if _round2:
+            r2 = await asyncio.gather(*[_dispatch_one(r, agent_results) for r in _round2])
+            for r, res in zip(_round2, r2):
+                agent_results[r] = res or "(无输出)"
+
         if not agent_results:
             return ""
 
-            # PJM synthesizes final summary (mandatory step)
+        # Evidence collection: capture file changes and test results
+        _evidence_lines = []
+        try:
+            _proj_path = _get_proj_path()
+            if _proj_path:
+                _proc = await asyncio.create_subprocess_shell(
+                    "python -m pytest tests/ -x --tb=short -q 2>&1 | tail -5",
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=_proj_path,
+                )
+                _stdout, _ = await asyncio.wait_for(_proc.communicate(), timeout=30)
+                _evidence_lines.append("## 测试结果\n" + _stdout.decode("utf-8", errors="replace")[-500:])
+        except asyncio.TimeoutError:
+            _evidence_lines.append("## 测试结果\n(测试执行超时)")
+        except Exception:
+            _evidence_lines.append("## 测试结果\n(测试执行失败)")
+
+        # PJM synthesizes final summary (mandatory step)
         await self.send(
             {"type": "agent_dispatch", "role": "project_manager", "role_display": "项目经理", "status": "started"}
         )
@@ -2412,6 +2452,8 @@ class AgentSession:
             body = "## Project Update\n## User Request\n" + user_request[:1000]
             if rlines:
                 body += "\n\n" + chr(10).join(rlines)
+            if _evidence_lines:
+                body += "\n\n" + chr(10).join(_evidence_lines)
             body += "\n\n作为项目经理，请客观总结。只报告有实际证据的工作（文件创建、代码编写、测试通过等）。"
             body += "如果某些角色的输出只是计划或空话而没有实际产出，请如实说明该角色未完成任务。"
             logger.info("_dispatch_mentions: synthesizing with gw.chat, body length=%d", len(body))
