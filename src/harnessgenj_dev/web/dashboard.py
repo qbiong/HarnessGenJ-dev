@@ -447,6 +447,7 @@ body {{
         <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono);" id="current-session-id" title="当前会话ID"></span>
         <select class="role-select" id="role-select" style="display:none;"><option value="project_manager" selected>Project Manager</option></select>
         <span style="font-size:11px;color:var(--text-muted)" id="key-info"></span>
+        <span id="phase-container" style="display:none;font-size:10px;padding:2px 8px;border-radius:4px;background:var(--bg-tertiary);color:var(--accent-cyan);margin-left:6px;"></span>
         <span style="flex:1"></span>
         <div class="session-dropdown">
             <a style="font-size:12px;color:var(--text-secondary);cursor:pointer;text-decoration:none;" onclick="toggleSessionPanel()">会话</a>
@@ -857,10 +858,26 @@ function handleMessage(msg) {{
             }}
             scrollToBottom();
             break;
+        case 'phase_status':
+            var pc = document.getElementById('phase-container');
+            if (pc) {{
+                pc.textContent = '📋 ' + (msg.phase_label || msg.phase || '');
+                pc.style.display = '';
+                pc.title = '当前阶段: ' + (msg.phase || '');
+            }}
+            break;
+        case 'contract_result':
+            var cr = document.createElement('div');
+            cr.className = 'msg-group system';
+            cr.innerHTML = '<div class="msg-bubble" style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15);font-size:11px;color:var(--text-secondary);"><pre style="margin:0;white-space:pre-wrap;font-size:11px;">' + escapeHtml(msg.summary || '') + '</pre></div>';
+            chat.appendChild(cr);
+            scrollToBottom();
+            break;
         case 'agent_dispatch':
             var div = document.createElement('div');
             div.className = 'msg-group system';
-            div.innerHTML = '<div class="msg-bubble" style="background:transparent;border:none;font-size:11px;color:var(--text-muted);">🔄 正在调用 <span style="color:var(--accent-cyan);">' + escapeHtml(msg.role_display || msg.role) + '</span>...</div>';
+            var parallelHint = msg.parallel ? ' (并行)' : '';
+            div.innerHTML = '<div class="msg-bubble" style="background:transparent;border:none;font-size:11px;color:var(--text-muted);">🔄 正在调用 <span style="color:var(--accent-cyan);">' + escapeHtml(msg.role_display || msg.role) + '</span>' + parallelHint + '...</div>';
             chat.appendChild(div);
             scrollToBottom();
             break;
@@ -2296,7 +2313,10 @@ class AgentSession:
 
         async def _dispatch_one(role: str, prev: dict) -> str:
             role_display = self._ROLE_DISPLAY.get(role, role)
-            await self.send({"type": "agent_dispatch", "role": role, "role_display": role_display, "status": "started"})
+            # Use closure variables _round1/_round2 from _dispatch_mentions
+            _all_roles = _round1 + _round2
+            is_parallel = len([_r for _r in _all_roles if _r != role]) > 0
+            await self.send({"type": "agent_dispatch", "role": role, "role_display": role_display, "status": "started", "parallel": is_parallel})
             try:
                 try:
                     from ..plugins import get_hook_manager
@@ -2461,10 +2481,10 @@ class AgentSession:
                 try:
                     _results = await _contract.verify_all()
                     _summary = _contract.summary()
-                    if _contract.status == "completed":
-                        sub_result += "\n\n" + _summary
-                    else:
-                        sub_result += "\n\n" + _summary
+                    sub_result += "\n\n" + _summary
+                    # Send contract result to frontend
+                    await self.send({"type": "contract_result", "role": role, "summary": _summary,
+                                     "status": _contract.status})
                     logger.info("_dispatch_one: %s contract %s (%d/%d)", role, _contract.status,
                                 sum(1 for c in _results if c.verified), len(_results))
                 except Exception as _exc:
