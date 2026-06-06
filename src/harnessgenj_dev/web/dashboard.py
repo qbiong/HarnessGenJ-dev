@@ -1695,7 +1695,7 @@ class AgentSession:
                     if not has_results:
                         logger.warning("_repair_conversation: stripping tool_calls from assistant at -%d (%d pending)",
                                        len(cleaned) - i, len(m["tool_calls"]))
-                        m["tool_calls"] = []
+                        del m["tool_calls"]
         return cleaned
 
     @staticmethod
