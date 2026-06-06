@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 
 # DeepSeek V4 1M 上下文窗口 + 压缩阈值
 DEFAULT_MAX_TOKENS = 1_000_000  # DeepSeek V4 1M 上下文窗口
-COMPACTION_THRESHOLD = 0.90  # 90% 触发压缩（大窗口可延迟）
-TIER1_KEEP_TOOL_RESULTS = 10  # 保留最近 10 个 tool results（大窗口更多空间）
+COMPACTION_THRESHOLD = 0.30  # 30% 即触发压缩，降低内存压力
+TIER1_KEEP_TOOL_RESULTS = 3  # 只保留最近 3 个完整 tool results，更早的截断为占位符
 
 
 @dataclass

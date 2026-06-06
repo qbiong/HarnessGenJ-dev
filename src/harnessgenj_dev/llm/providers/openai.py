@@ -13,6 +13,34 @@ from .base import BaseProvider
 
 logger = logging.getLogger(__name__)
 
+# DeepSeek cache hit rate tracking
+_cache_total_tokens = 0
+_cache_hit_tokens = 0
+
+
+def log_cache_metrics():
+    """Log cumulative DeepSeek cache hit rate."""
+    global _cache_total_tokens, _cache_hit_tokens
+    if _cache_total_tokens > 0:
+        rate = _cache_hit_tokens / _cache_total_tokens * 100
+        logger.info("Cache: %.1f%% hit (%d/%d tokens)", rate, _cache_hit_tokens, _cache_total_tokens)
+
+
+def record_cache_usage(usage: dict | None):
+    """Record cache metrics from API response usage field."""
+    global _cache_total_tokens, _cache_hit_tokens
+    if not usage:
+        return
+    hit = usage.get("prompt_cache_hit_tokens", 0) or 0
+    total = usage.get("prompt_tokens", 0) or 0
+    if hit > 0:
+        _cache_hit_tokens += hit
+        _cache_total_tokens += total
+        rate = hit / total * 100 if total > 0 else 0
+        logger.info("Cache: +%d hit/%d total (%.1f%% this call, %.1f%% cumulative)",
+                     hit, total, rate,
+                     _cache_hit_tokens / _cache_total_tokens * 100 if _cache_total_tokens > 0 else 0)
+
 
 class OpenAIProvider(BaseProvider):
     """OpenAI API adapter.
@@ -181,6 +209,12 @@ class OpenAIProvider(BaseProvider):
         finish_reason = "tool_calls" if tool_calls else (choice.finish_reason or "stop")
 
         usage = self._build_usage(response.usage)
+        # Track DeepSeek cache metrics
+        if hasattr(response, "usage") and response.usage:
+            record_cache_usage({
+                "prompt_tokens": getattr(response.usage, "prompt_tokens", 0),
+                "prompt_cache_hit_tokens": getattr(response.usage, "prompt_cache_hit_tokens", 0),
+            })
 
         return LLMResponse(
             content=content,
@@ -274,6 +308,10 @@ class OpenAIProvider(BaseProvider):
                     usage = None
                     if hasattr(chunk, "usage") and chunk.usage:
                         usage = self._build_usage(chunk.usage)
+                        record_cache_usage({
+                            "prompt_tokens": getattr(chunk.usage, "prompt_tokens", 0),
+                            "prompt_cache_hit_tokens": getattr(chunk.usage, "prompt_cache_hit_tokens", 0),
+                        })
                     yield StreamChunk(content=None, done=True, usage=usage, error=None)
                     return
 
