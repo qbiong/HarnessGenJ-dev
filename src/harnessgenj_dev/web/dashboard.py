@@ -2229,6 +2229,11 @@ class AgentSession:
         )
 
         logger.info("_classify_mentions: starting LLM classification for %d mentions: %s", len(mentions), mentions)
+        # Quick pre-check: if PM is asking a question, don't dispatch
+        if any(q in pm_text[-80:] for q in ["？", "吗？", "吗?", "是否", "?"]):
+            logger.info("_classify_mentions: question detected, skipping")
+            return []
+
         try:
             gw = LLMGateway(
                 provider=_get_provider(),
@@ -2261,12 +2266,12 @@ class AgentSession:
                         logger.info("_classify_mentions: @%s → REFERENCE (skipped)", role)
                 return dispatch_list
         except asyncio.TimeoutError:
-            logger.warning("_classify_mentions: timed out after 10s, dispatching all mentions")
+            logger.warning("_classify_mentions: timed out, dispatching none")
         except Exception as exc:
-            logger.warning("_classify_mentions: LLM classification failed, falling back: %s", exc)
+            logger.warning("_classify_mentions: LLM classification failed: %s", exc)
 
-        # Fallback: if classification fails, dispatch all (safe default)
-        return mentions
+        # Fallback: if classification fails, dispatch none (question safety)
+        return []
 
     async def _dispatch_mentions(self, pm_text: str, user_request: str, _round: int = 1, _max_rounds: int = 3) -> str:
         """PM dispatches @mentioned agents, collects results, synthesizes summary.
