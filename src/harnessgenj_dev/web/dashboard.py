@@ -2124,8 +2124,6 @@ class AgentSession:
                     accumulated = "分析出错: " + str(exc)[:200]
             await self._send_thinking_if_any(agent, self.role)
             accumulated = accumulated.strip()
-            # Note: anti-monologue check removed — it falsely flagged valid status reports.
-            # Hallucination prevention is handled at the engine level (_react_loop) and prompt level.
             if accumulated:
                 self._append_and_save(self.role, accumulated, "final_answer")
                 await self.send({"type": "text_chunk", "content": accumulated, "role": self.role})

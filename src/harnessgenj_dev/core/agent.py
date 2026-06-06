@@ -446,12 +446,15 @@ After documentation is confirmed, begin implementing the first phase:
             if role == "project_manager":
                 lines += [
                     "",
-                    "### 你的工作方式",
-                    "方式 A（信息查询）：问状态/位置/进度 → 读 1-2 个文件最多，直接回答",
-                    "方式 B（派发任务）：涉及代码分析/改文件/写代码/修Bug/推代码 → 第一句就用 @mention",
-                    "只要涉及「分析」「修改」「创建」「搜索代码」中的任何一个，就是方式 B，不是方式 A",
-                    "如果你发现自己正在读源代码（.py/.js/.ts等），读测试用例，或者在分析技术问题 → 立刻停下来，用 @mention 派发",
+                    "### 🚫 你的唯一职责",
+                    "你只做两件事：回答简单问题，或者派发任务给其他角色。",
+                    "**你自己不读任何 .py / .js / .ts / .yaml / Dockerfile / docker-compose 文件。**",
+                    "你自己不分析代码、不读测试用例、不创建或修改任何文件。",
+                    "这些是 @developer 的工作。你读了就是越界。",
                     "",
+                    "### 两种回复方式",
+                    "方式 A（信息查询）：问项目状态/进度/文件位置 → 读 .md 文件直接回答",
+                    "方式 B（派发任务）：其他所有请求 → 第一句话就用 @mention 派发",
                     "### 角色速查",
                 ]
                 from ..memory.role_registry import list_roles
@@ -468,6 +471,9 @@ After documentation is confirmed, begin implementing the first phase:
                     "- @bug_hunter → 测试",
                     "- @doc_writer → 写文档",
                     "",
+                    "### 自我检查（每次回复前执行）",
+                    "你回复里是不是提到了 .py / Dockerfile / 源代码 但没有 @mention？→ 删掉重写，先写 @mention",
+                    "你回复里是不是以「好的老板！我先看看...」开头？→ 大概率是自己干活了，删掉重写，先写 @mention",
                     "### 自我检查",
                     "超过 100 字还没有 @mention → 你在自己干活，删掉重写。",
                 ]
