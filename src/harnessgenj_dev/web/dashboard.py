@@ -2101,6 +2101,12 @@ class AgentSession:
             else {**m, "role": m["role"] if m["role"] in _OPENAI_ROLES else "assistant"}
             for m in session.messages
         ]
+        # Pre-dispatch nudge for PM (not an intercept — guides behavior without blocking output)
+        if self.role == "project_manager":
+            agent.state.conversation_history.append({
+                "role": "user",
+                "content": "[提示] 开发任务（修复/分析/改文件/推代码）请在回复第一句就用 @mention 派发。项目经理不自己分析代码或读取源文件。"
+            })
         await self._send_status("running")
         accumulated = ""
         try:
@@ -2271,17 +2277,6 @@ class AgentSession:
         from harnessgenj_dev.llm.gateway import LLMGateway
 
         session = self._get_session()
-        # Load PhaseState from session metadata (lightweight, no-architecture-change)
-        _ps = None
-        try:
-            from harnessgenj_dev.core.phases import PhaseState, PHASE_LABELS
-            _ps_data = session.metadata.get("phase_state", {}) if session else {}
-            if _ps_data and isinstance(_ps_data, dict):
-                _ps = PhaseState(current_phase=_ps_data.get("current_phase", "discuss"))
-            else:
-                _ps = PhaseState()
-        except Exception:
-            pass
 
         # Build dynamic mention patterns from role registry
         from ..memory.role_registry import list_roles
@@ -2300,33 +2295,13 @@ class AgentSession:
             logger.info("_dispatch_mentions: PM requested team review via @review")
             return await self._run_team_review(user_request, pm_text)
 
-        # Initialize phase_state if not present
-        if session and "phase_state" not in session.metadata:
-            try:
-                from harnessgenj_dev.core.phases import PhaseState
-                session.metadata["phase_state"] = PhaseState().to_dict()
-                self._get_session_mgr().save(session)
-            except Exception:
-                pass
-
         if not mentions:
             return ""
 
-        # Parallel dispatch by dependency rounds
-        from ..memory.role_registry import get_role as _grc
-        _round1, _round2 = [], []
-        for _r in mentions:
-            _cfg = _grc(_r)
-            _deps = _cfg.get("depends_on", []) if _cfg else []
-            _needs = any(_d for _d in _deps if any(_rm in _d for _rm in mentions))
-            (_round2 if _needs else _round1).append(_r)
-
+        # Serial dispatch: PM's @mention order = execution order
         async def _dispatch_one(role: str, prev: dict) -> str:
             role_display = self._ROLE_DISPLAY.get(role, role)
-            # Use closure variables _round1/_round2 from _dispatch_mentions
-            _all_roles = _round1 + _round2
-            is_parallel = len([_r for _r in _all_roles if _r != role]) > 0
-            await self.send({"type": "agent_dispatch", "role": role, "role_display": role_display, "status": "started", "parallel": is_parallel})
+            await self.send({"type": "agent_dispatch", "role": role, "role_display": role_display, "status": "started"})
             try:
                 try:
                     from ..plugins import get_hook_manager
@@ -2530,34 +2505,11 @@ class AgentSession:
                 })
                 agent_results[role] = "(error)"
 
-        # Gather results: parallel dispatch by dependency rounds
+        # Serial dispatch: execute roles in PM @mention order
         agent_results = {}
-        try:
-            if _round1:
-                r1 = await asyncio.gather(*[_dispatch_one(r, {}) for r in _round1])
-                for r, res in zip(_round1, r1):
-                    agent_results[r] = res or "(无输出)"
-            if _round2:
-                r2 = await asyncio.gather(*[_dispatch_one(r, agent_results) for r in _round2])
-                for r, res in zip(_round2, r2):
-                    agent_results[r] = res or "(无输出)"
-        except Exception as _exc:
-            logger.exception("_dispatch_mentions: dispatch failed: %s", _exc)
-
-        # Phase advancement: check gates and advance if possible
-        _phase_advanced = ""
-        try:
-            if _ps and session:
-                _ctx = {"project_path": _get_proj_path() or "", "agent_results": agent_results}
-                _new_phase = await _ps.advance(_ctx)
-                if _new_phase:
-                    _phase_advanced = _new_phase
-                    session.metadata["phase_state"] = _ps.to_dict()
-                    self._get_session_mgr().save(session)
-                    logger.info("Phase advanced: -> %s", _new_phase)
-        except Exception:
-            pass
-
+        for _r in mentions:
+            _r_result = await _dispatch_one(_r, agent_results)
+            agent_results[_r] = _r_result or "(无输出)"
         if not agent_results:
             return ""
         _evidence_lines = []
@@ -2588,23 +2540,11 @@ class AgentSession:
             rlines = []
             for r in agent_results:
                 rlines.append("### " + self._ROLE_DISPLAY.get(r, r) + " | " + agent_results[r][:1500])
-            # Phase context for synthesis
-            _phase_context = ""
-            if _ps:
-                _phase_context = f"\n## 当前阶段\n{PHASE_LABELS.get(_ps.current_phase, _ps.current_phase)}"
-                if _phase_advanced:
-                    _phase_context += f" → {PHASE_LABELS.get(_phase_advanced, _phase_advanced)} 🎉"
-                # Notify frontend
-                await self.send({"type": "phase_status", "phase": _ps.current_phase,
-                                 "phase_label": PHASE_LABELS.get(_ps.current_phase, _ps.current_phase)})
-
             body = "## Project Update\n## User Request\n" + user_request[:1000]
             if rlines:
                 body += "\n\n" + chr(10).join(rlines)
             if _evidence_lines:
                 body += "\n\n" + chr(10).join(_evidence_lines)
-            if _phase_context:
-                body += "\n\n" + _phase_context
             body += "\n\n作为项目经理，请客观总结。只报告有实际证据的工作（文件创建、代码编写、测试通过等）。"
             body += "如果某些角色的输出只是计划或空话而没有实际产出，请如实说明该角色未完成任务。"
             logger.info("_dispatch_mentions: synthesizing with gw.chat, body length=%d", len(body))
