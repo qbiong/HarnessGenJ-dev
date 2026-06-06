@@ -1666,27 +1666,37 @@ class AgentSession:
         """Repair conversation history for API compatibility.
 
         1. Remove orphan tool messages (no preceding assistant with matching tool_call_id)
-        2. Strip tool_calls from trailing assistant if no tool results follow
+        2. Strip tool_calls from ANY assistant whose tool results are missing
            (prevents 'assistant with tool_calls without tool results' API error)
         """
-        repaired = []
+        # Pass 1: remove orphan tool messages
+        cleaned = []
         for m in history:
             if m.get("role") == "tool":
                 tid = m.get("tool_call_id", "")
                 has_parent = any(
                     p.get("role") == "assistant" and any(tc.get("id") == tid for tc in p.get("tool_calls", []))
-                    for p in reversed(repaired)
+                    for p in reversed(cleaned)
                 )
                 if not has_parent:
                     logger.warning("_repair_conversation: dropping orphan tool msg id=%.20s", tid)
                     continue
-            repaired.append(m)
-        # Strip tool_calls from trailing assistant (saved mid-iteration, no tool results yet)
-        if repaired and repaired[-1].get("role") == "assistant" and repaired[-1].get("tool_calls"):
-            logger.warning("_repair_conversation: stripping tool_calls from trailing assistant (%d pending)",
-                           len(repaired[-1]["tool_calls"]))
-            repaired[-1]["tool_calls"] = []
-        return repaired
+            cleaned.append(m)
+        # Pass 2: strip tool_calls from any assistant whose tool results are missing
+        for i in range(len(cleaned) - 1, -1, -1):
+            m = cleaned[i]
+            if m.get("role") == "assistant" and m.get("tool_calls"):
+                tids = [tc.get("id", "") for tc in m["tool_calls"] if tc.get("id")]
+                if tids:
+                    has_results = any(
+                        cm.get("role") == "tool" and cm.get("tool_call_id", "") in tids
+                        for cm in cleaned[i+1:]
+                    )
+                    if not has_results:
+                        logger.warning("_repair_conversation: stripping tool_calls from assistant at -%d (%d pending)",
+                                       len(cleaned) - i, len(m["tool_calls"]))
+                        m["tool_calls"] = []
+        return cleaned
 
     @staticmethod
     def _compact_sub_session(history: list[dict], max_keep: int = 12) -> list[dict]:
@@ -2432,17 +2442,13 @@ class AgentSession:
                 for _dispatch_try in range(5):  # safety limit, normally breaks on DONE
                     # Stream sub-agent
                     sub_accumulated = ""
-                    output_buffer = ""
                     async for chunk in sub_agent.run_stream(task_prompt, role=role):
                         sub_accumulated += chunk
-                        output_buffer += chunk
-                        if chunk.strip() and ("\n" in chunk or len(output_buffer) > 40):
+                        if chunk.strip():
                             clean = chunk.strip()
                             if clean and not clean.startswith("[Executing") and not clean.startswith("```tool"):
-                                # Suppress knowledge-file maintenance noise from user view
                                 if not _is_kf_maintenance(clean):
                                     await self.send({"type": "text_chunk", "role": role, "content": chunk})
-                            output_buffer = ""
                     await self._send_thinking_if_any(sub_agent, role)
                     sub_result = sub_accumulated.strip()
                     if not sub_result:
