@@ -751,9 +751,12 @@ After documentation is confirmed, begin implementing the first phase:
             results = await execute_tools_parallel(tool_call_dicts)
 
             for i, result in enumerate(results):
+                _tool_content = (result.content if result.success else f"Error: {result.error}") or ""
+                if len(_tool_content) > 3000:
+                    _tool_content = _tool_content[:3000] + f"\n...[truncated {len(_tool_content)} chars]"
                 observation = {
                     "role": "tool",
-                    "content": result.content if result.success else f"Error: {result.error}",
+                    "content": _tool_content,
                     "tool_call_id": tool_calls[i].get("id", f"call_{i}"),
                 }
                 self.state.conversation_history.append(observation)
@@ -917,9 +920,12 @@ After documentation is confirmed, begin implementing the first phase:
             results = await execute_tools_parallel(tool_call_dicts)
 
             for i, result in enumerate(results):
+                _tool_content = (result.content if result.success else f"Error: {result.error}") or ""
+                if len(_tool_content) > 3000:
+                    _tool_content = _tool_content[:3000] + f"\n...[truncated {len(_tool_content)} chars]"
                 observation = {
                     "role": "tool",
-                    "content": result.content if result.success else f"Error: {result.error}",
+                    "content": _tool_content,
                     "tool_call_id": tool_calls[i].get("id", f"call_{i}"),
                 }
                 self.state.conversation_history.append(observation)
